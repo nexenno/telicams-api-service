@@ -12,6 +12,6 @@
     "resolveJsonModule": true, // Allow importing `.json` files
     "noImplicitAny": true // Prevents use of untyped variables
   },
-  "include": ["src", "src/**/*.json", "package.json", "server.js"],
+  "include": ["src", "src/**/*.json", "package.json", "server.ts", "sauth.ts"],
   "exclude": ["node_modules", "dist", "build", "src/**/*.test.ts"]
 }
