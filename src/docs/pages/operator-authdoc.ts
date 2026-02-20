@@ -32,17 +32,12 @@ operatorAuthDoc.register_account = {
       status: "required",
       description: "",
     },
+
     {
-      field: "phone_number",
+      field: "business_type",
       type: "String",
       status: "required",
-      description: "",
-    },
-    {
-      field: "business_number",
-      type: "String",
-      status: "required",
-      description: "",
+      description: "1=Individual, 2=Company",
     },
     {
       field: "country",
@@ -51,9 +46,21 @@ operatorAuthDoc.register_account = {
       description: "",
     },
     {
-      field: "state",
+      field: "fleet_size",
       type: "String",
       status: "required",
+      description: "Estimated number of devices;",
+    },
+    {
+      field: "state",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "phone_number",
+      type: "String",
+      status: "optional",
       description: "",
     },
   ],

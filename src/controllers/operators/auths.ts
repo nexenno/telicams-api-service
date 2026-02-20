@@ -113,8 +113,6 @@ export class OperatorAuthController extends SimpleNodeJsController {
 
     if (!country) return helpers.outputError(this.res, null, "Country is required")
 
-    if (!state) return helpers.outputError(this.res, null, "State is required")
-
     if (!businessType) return helpers.outputError(this.res, null, "Business type is required")
 
     if (!fleetSize) return helpers.outputError(this.res, null, "Fleet size is required")
@@ -124,8 +122,18 @@ export class OperatorAuthController extends SimpleNodeJsController {
     email = email.toLowerCase()
 
     if (!validator.isEmail(email)) return helpers.outputError(this.res, null, "Email is invalid")
-
+    if (email.length > 100) return helpers.outputError(this.res, null, "Email should not be more than 100 characters")
+    if (password.length > 30) return helpers.outputError(this.res, null, "Password should not be more than 30 characters")
+    if (password.length < 6) return helpers.outputError(this.res, null, "Password must be 6 characters or more")
+    if (businessName.length > 100) return helpers.outputError(this.res, null, "Business name should not be more than 100 characters")
     if (businessName.length < 3) return helpers.outputError(this.res, null, "Business name must be 3 characters or more")
+    if (!helpers.hasAlphabet(businessName, 2)) {
+      return helpers.outputError(this.res, null, "Business name must have at least 2 letters")
+    }
+    //check if there's capital letter
+    if (helpers.hasInvalidSearchChar(businessName)) {
+      return helpers.outputError(this.res, null, "Business name should not have special characters")
+    }
 
     if (phoneNumber) {
       if (!helpers.isNumber({ input: phoneNumber, type: "int", length: 11 })) {
@@ -133,13 +141,21 @@ export class OperatorAuthController extends SimpleNodeJsController {
       }
     }
 
-    if (!helpers.isNumber({ input: fleetSize, type: "int" })) {
+    if (!helpers.isNumber({ input: fleetSize, type: "int", maxLength: 6 })) {
       return helpers.outputError(this.res, null, "Fleet size is invalid")
     }
 
-    if (password.length < 6) {
-      return helpers.outputError(this.res, null, "Password must be 6 characters or more")
+    if (country.length > 50) return helpers.outputError(this.res, null, "Country should not be more than 50 characters")
+    if (state && state.length > 50) return helpers.outputError(this.res, null, "State should not be more than 50 characters")
+    //if country has special characters
+    if (helpers.hasInvalidSearchChar(country)) {
+      return helpers.outputError(this.res, null, "Country should not have special characters")
     }
+
+    if (state && helpers.hasInvalidSearchChar(state)) {
+      return helpers.outputError(this.res, null, "State should not have special characters")
+    }
+
     //check if there's capital letter
     if (!/[A-Z]/.test(password)) {
       return helpers.outputError(this.res, null, "Password must have atleast one capital letter")
