@@ -104,4 +104,7 @@ export type UserNotificationTable = {
   record_type?: string;
   status?: number
 }
-export type PrivateMethodProps = Omit<SimpleJsPrivateMethodProps, "customData"> & Required<Pick<SimpleJsPrivateMethodProps, "customData">>
+export interface PrivateMethodProps extends Omit<SimpleJsPrivateMethodProps, "customData"> {
+  customData: JWTTokenPayload
+}
+// export type PrivateMethodProps = Omit<SimpleJsPrivateMethodProps, "customData"> & Required<Pick<SimpleJsPrivateMethodProps, "customData">>
