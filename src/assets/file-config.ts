@@ -28,14 +28,16 @@ export const fileConfig = {
     env: 'local',
     dbUrl: '',
     jwtSecret: '2a4b16a1c3b7d8e9f8c3e1bc0d7e5e4c2f7f9a3d9d6af4b09d4f2ac2c84e9fb7',
-    skipBodyParse: ["application/text", "application/media"] as const,
+    gatewaySecret: "e9f8c3e18f7f9a3d9d6af4b0a2a4b16e94f7dac23b7d8f4b099d4f2ac2cd6d4f2b7ac2c87e59d4f2cd69e4c2f7f9a3d",
     superAdminAccount: {
       user: "superadmin@koova.ng",
       pass: "yu&5gK8789nhjk"
     },
   },
   port: 8000,
-  noAuth: []
+  noAuth: [
+    "/zgateway/hooks/",
+  ]
 }
 
 //the environment working on

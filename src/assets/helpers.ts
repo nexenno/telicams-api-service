@@ -3,14 +3,19 @@ import validator from "validator"
 import {
   MakeHTTPReqProp, ObjectPayload, IsNumberProp,
   JWTTokenPayload,
+  SendDBQuery,
 } from "../typings/general"
 // import { AdminLogModel, OperatorLogModel } from "../models/activity-logs"
 import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
+import { DashcamDeviceModel } from "../models/device-lists"
+import { DashcamActivityLogModel } from "../models/device-data"
+
+export const GlobalConnectedDevices: Map<string, { operator_id: string; device_id: string }> = new Map() //for storing connected devices and their auth_id
 
 
 export default class helpers {
-
   constructor() { }
+
   static get errorText() {
     return {
       failedToProcess: "Failed to process your request"
@@ -305,6 +310,37 @@ export default class helpers {
 
     //return the result
     return { status: true, data: result, msg: undefined }
+  }
+
+  //get connected device data
+  static async getConnectedDeviceData(deviceNumber: string) {
+    //if the data exist in the map
+    if (GlobalConnectedDevices.has(deviceNumber)) {
+      return GlobalConnectedDevices.get(deviceNumber)
+    }
+    //fetch the data from the database and store it in the map
+    let deviceData: SendDBQuery = await DashcamDeviceModel.findOne({ device_number: deviceNumber },
+      { operator_id: 1, _id: 1 }).lean().catch(e => ({ error: e }))
+
+    //if there's data and no error, store it in the map and return the data
+    if (deviceData && !deviceData.error) {
+      let sendData = { operator_id: deviceData.operator_id, device_id: String(deviceData._id) }
+      GlobalConnectedDevices.set(deviceNumber, sendData)
+      return sendData
+    }
+
+    return null
+  }
+
+  //for logging dashcam activity
+  static async logDashcamActivity(data: {
+    operator_id?: string, device_id: string, activity_type: string,
+    activity_detail?: ObjectPayload, message: string
+  }): Promise<void> {
+
+    //if there's no valid data
+    if (!data.operator_id || !data.device_id || !data.activity_type) return
+    await DashcamActivityLogModel.create(data).catch(e => ({ error: e }))
   }
 
   // //for logging operator activity

@@ -1,7 +1,7 @@
 import helpers from "../assets/helpers";
 import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from "../typings/general";
 import { mongoose } from "../models/dbConnector";
-import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/opt-vehdevice";
+import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 import { DatabaseTableList, varConfig } from "../assets/var-config";
 

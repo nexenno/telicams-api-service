@@ -7,7 +7,6 @@ const DashcamList = new mongoose.Schema({
     type: Schema.Types.ObjectId,
     index: true,
     ref: DatabaseTableList.user_operators,
-    required: true,
   },
   device_number: {
     type: String,
@@ -19,21 +18,36 @@ const DashcamList = new mongoose.Schema({
   device_model: {
     type: String,
     maxlength: 50,
-    required: true,
   },
   device_oem: {
     type: String,
     maxlength: 50,
-    required: true,
   },
   online: {
     type: Boolean,
     default: false,
     index: true,
   },
+  province_id: {
+    type: String,
+    maxlength: 20,
+  },
+  city_id: {
+    type: String,
+    maxlength: 20,
+  },
+  license_plate: {
+    type: String,
+    maxlength: 20,
+  },
+  gateway_status: {
+    type: Number,
+    enum: [0, 1], //0 - not registered, 1 - registered
+    default: 0,
+  },
   active_status: {
     type: Number,
-    enum: [0, 1, 2, 3], //0 - inactive, 1 - active, 2 - suspended, 3 - decommissioned
+    enum: [1, 2, 3], //1 - active, 2 - suspended, 3 - decommissioned
     default: 1,
   },
   assign_status: {

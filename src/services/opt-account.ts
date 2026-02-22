@@ -5,7 +5,7 @@ import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from ".
 import { mongoose } from "../models/dbConnector";
 import { DatabaseTableList } from "../assets/var-config";
 import { UserOperatorModel, UserOperatorTypes } from "../models/user-operators";
-import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/opt-vehdevice";
+import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 
 export class OperatorAccountService {
   //========**************OPERATOR  SECTION***********=========================/

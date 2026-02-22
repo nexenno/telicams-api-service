@@ -19,7 +19,8 @@ export const DatabaseTableList = {
   dashcam_devices: "dashcam_devices",
   collection_lists: "collection_lists",
   vehicle_lists: "vehicle_lists",
-
+  dashcam_alarms: "dashcam_alarms",
+  dashcam_activity_logs: "dashcam_logs",
 
   user_admins: "user_admins",
   user_customers: "user_customers",
