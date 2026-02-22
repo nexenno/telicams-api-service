@@ -599,8 +599,7 @@ export class OperatorAccountService {
     let q = helpers.getInputValueString(query, "q")
     let page = helpers.getInputValueString(query, "page")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
-    let startDate = helpers.getInputValueString(query, "start_date")
-    let endDate = helpers.getInputValueString(query, "end_date")
+    let status = helpers.getInputValueString(query, "status")
     let component = helpers.getInputValueString(query, "component") as 'count'
 
     let qBuilder: ObjectPayload = {
@@ -615,54 +614,23 @@ export class OperatorAccountService {
       qBuilder._id = new mongoose.Types.ObjectId(id)
     }
 
+    if (status) {
+      if (!["0", "1", "2"].includes(status)) {
+        return helpers.outputError(res, null, "Invalid status value")
+      }
+      qBuilder.account_status = parseInt(status)
+    }
+
     if (q) {
-      if (!/^[a-z0-9\@\.\-\_\s]+$/i.test(q)) {
+      if (!helpers.isAllowedCharacters(q)) {
         return helpers.outputError(res, null, "Special characters not allowed on q. q must be alphabet or numeric")
       }
-      let splitName = q.split(" ")
-      let fName = splitName[0].trim()
-      let lName = splitName[1] ? splitName[1].trim() : ''
-      //if there's last name
-      if (lName && lName.length) {
-        qBuilder.first_name = { $regex: fName, $options: 'i' }
-        qBuilder.last_name = { $regex: lName, $options: 'i' }
-      } else {
-        qBuilder.$or = [
-          { first_name: { $regex: q, $options: 'i' } },
-          { last_name: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } }
-        ]
-      }
+      qBuilder.$or = [
+        { business_name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ]
     }
 
-    //chek start date if submitted
-    if (startDate) {
-      if (!helpers.isDateFormat(startDate)) {
-        return helpers.outputError(res, null, 'Invalid start date. must be in the formate YYYY-MM-DD');
-      }
-      let sDate = new Date(startDate + "T00:00:00.000Z")
-      sDate.setHours(sDate.getHours() - 1)
-      // @ts-expect-error
-      queryBuilder.createdAt = { $gte: sDate };
-    }
-
-    //chek end date if submitted
-    if (endDate) {
-      //if start date is not submitted
-      if (!helpers.isDateFormat(endDate)) {
-        return helpers.outputError(res, null, 'Invalid end date. must be in the formate YYYY-MM-DD');
-      }
-      if (!startDate) {
-        return helpers.outputError(res, null, 'end_date can only be used with start_date');
-      }
-
-      //check if the date are wrong
-      if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
-        return helpers.outputError(res, null, 'start date can not be greater than end date');
-      }
-      // @ts-expect-error
-      queryBuilder.createdAt.$lt = new Date(endDate + "T23:00:00.000Z")
-    }
     //if item per page
     let getPage = helpers.getPageItemPerPage(itemPerPage, page)
 

@@ -1,6 +1,7 @@
 import { SimpleNodeJsController } from "@increase21/simplenodejs";
 import { OperatorAccountService } from "../../services/opt-account";
 import helpers from "../../assets/helpers";
+import { OperatorOtherService } from "../../services/opt-others";
 
 export default class OperatorAccountController extends SimpleNodeJsController {
   protected __checkContext(): void {
@@ -30,4 +31,13 @@ export default class OperatorAccountController extends SimpleNodeJsController {
   }
 
 
+  async activityLogs(id: string | undefined) {
+    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    if (this.method !== "get") return helpers.outputError(this.res, 405)
+    return OperatorOtherService.ActivityLogs({
+      customData: this._custom_data, body: this.body,
+      req: this.req, res: this.res, query: this.query,
+      id,
+    })
+  }
 }

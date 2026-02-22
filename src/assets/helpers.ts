@@ -1,10 +1,9 @@
 import request from "request"
 import validator from "validator"
+import { DateTime } from "luxon";
 import {
   MakeHTTPReqProp, ObjectPayload, IsNumberProp,
-  JWTTokenPayload,
-  SendDBQuery,
-  ConnectedDeviceValues,
+  JWTTokenPayload, SendDBQuery, ConnectedDeviceValues,
 } from "../typings/general"
 // import { AdminLogModel, OperatorLogModel } from "../models/activity-logs"
 import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
@@ -13,7 +12,8 @@ import { DashcamActivityLogModel } from "../models/device-data"
 import { OperatorLogModel } from "../models/activity-logs"
 
 export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
-
+//@ts-ignore
+export const GlobalTimeZones: string[] = Intl.supportedValuesOf('timeZone')
 
 export default class helpers {
   constructor() { }
@@ -276,6 +276,20 @@ export default class helpers {
     nextDate.setUTCDate(nextDate.getUTCDate() + 1)
     nextDate.setUTCHours(2, 0, 0)
     return Math.round((nextDate.getTime() - new Date().getTime()) / 1000)
+  }
+
+
+  static convertDateTimeZone(data: { dateString: string; fromTimeZone: string | "utc"; toTimeZone: string | "utc" }) {
+    let convertTime = DateTime.fromISO(data.dateString, { zone: data.fromTimeZone || "utc" }).setZone(data.toTimeZone || "utc"); // your user's timezone
+    let timeOut = convertTime.toFormat("HH:mm");
+    let dateOut = convertTime.toFormat("yyyy-MM-dd");
+    let pop = {
+      time: timeOut, date: dateOut,
+      hr: parseInt(timeOut.substring(0, 2)),
+      dateObj: new Date(convertTime.toISO({ includeOffset: false }) + "Z"),
+      day: convertTime.weekday === 7 ? 0 : convertTime.weekday,
+    }
+    return pop;
   }
 
   //getting pagination number

@@ -1,4 +1,4 @@
-import helpers from "../assets/helpers";
+import helpers, { GlobalTimeZones } from "../assets/helpers";
 import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from "../typings/general";
 import { mongoose } from "../models/dbConnector";
 import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
@@ -99,6 +99,229 @@ export class OperatorAssetService {
 
   }
 
+  static async AssignDeviceToVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+    let optID = helpers.getOperatorAuthID(userData)
+
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle id is required")
+
+    //validating the ID
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle id")
+
+    //get the vehicle
+    let getOpt: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({ _id: vehicleID, operator_id: optID }).lean().catch(e => ({ error: e }))
+
+    //check for error
+    if (getOpt && getOpt.error) {
+      console.log("Error checking vehicle for assign device by operator", getOpt.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!getOpt) return helpers.outputError(res, null, "Vehicle not found")
+
+    //if the vehicle is not active, cannot assign device
+    if (getOpt && getOpt.status !== 1) return helpers.outputError(res, null, "Vehicle is not active")
+
+    //if the vehicle is already assigned with a device, return error
+    if (getOpt.device_assigned || getOpt.device_id) {
+      return helpers.outputError(res, null, "Vehicle is already assigned with a device")
+    }
+
+    //get the device data
+    let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({ _id: id, operator_id: optID }).lean().catch(e => ({ error: e }))
+
+    //check for error
+    if (getDevice && getDevice.error) {
+      console.log("Error checking device for operator assign vehicle", getDevice.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!getDevice) return helpers.outputError(res, null, "Device not found")
+
+    //check if the device is already assigned to another operator
+    if (getDevice.vehicle_id) return helpers.outputError(res, null, "This device is already assigned to vehicle")
+
+    //update the device with the vehicle id and assign status
+    let Assignveh: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
+      $set: { vehicle_id: vehicleID, assign_status: 2 }
+    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
+
+    if (Assignveh && Assignveh.error) {
+      console.log("Error assigning device to operator", Assignveh.error)
+      return helpers.outputError(res, 500)
+    }
+
+    //if the query does not execute
+    if (!Assignveh) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    //add the device id to the vehicle
+    await OptVehicleListModel.findByIdAndUpdate(vehicleID, { $set: { device_id: id, device_assigned: 1 } }).catch(e => { })
+
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string, operation: "assign-device",
+      data: { id: vehicleID, plate_number: getOpt.plate_number },
+      body: `Assigned device with number ${getDevice.device_number} to vehicle ${getOpt.plate_number}`
+    }).catch(e => { })
+
+    return helpers.outputSuccess(res)
+  }
+
+  static async UnassignDeviceFromVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+    //get the device data
+    let getDevice: SendDBQuery<DashcamDeviceTypes> = await OptVehicleListModel.findOne({
+      device_id: id, operator_id: optID
+    }).lean().catch(e => ({ error: e }))
+
+    //check for error
+    if (getDevice && getDevice.error) {
+      console.log("Error checking device for operator unassign device", getDevice.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!getDevice) return helpers.outputError(res, null, "Device not found")
+
+    //remove the device id from the vehicle and change assign status
+    let unAssign: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(getDevice._id, {
+      $unset: { device_id: 1 }, $set: { device_assigned: 0 }
+    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
+
+    if (unAssign && unAssign.error) {
+      console.log("Error unassigning device from vehicle", unAssign.error)
+      return helpers.outputError(res, 500)
+    }
+
+    //if the query does not execute
+    if (!unAssign) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    //remove the vehicle id from the device
+    await DashcamDeviceModel.findOneAndUpdate({ operator_id: optID, _id: id },
+      { $unset: { vehicle_id: 1 }, $set: { assign_status: 1 } }).catch(e => { })
+
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string, operation: "unassign-device",
+      data: { id: getDevice._id, plate_number: getDevice.plate_number },
+      body: `Unassigned device with number ${getDevice.device_number} from vehicle ${getDevice.plate_number}`
+    }).catch(e => { })
+
+    return helpers.outputSuccess(res)
+  }
+
+  static async DeleteDevice({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+    //if method is not delete
+    let getData: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
+      _id: new mongoose.Types.ObjectId(id), operator_id: optID
+    }).lean().catch((e) => ({ error: e }));
+
+    //check for error
+    if (getData && getData.error) {
+      console.log("Error finding device by admin to delete", getData.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!getData) return helpers.outputError(res, null, "Device not found")
+
+    //if the device is link, request for unlinking
+    if (getData.vehicle_id) return helpers.outputError(res, null, "Device is currently assigned to a vehicle.")
+
+    let deleteResult: SendDBQuery = await DashcamDeviceModel.findByIdAndDelete(id).lean().catch((e) => ({ error: e }));
+
+    if (deleteResult && deleteResult.error) {
+      console.log("Error deleting device by operator", deleteResult.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!deleteResult) return helpers.outputError(res, null, helpers.errorText.failedToProcess);
+
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "device-delete", body: `Deleted a device - ${getData.device_model}`,
+      data: {},
+    }).catch(e => { })
+
+    return helpers.outputSuccess(res, {})
+  }
+
+  static async RegisterDevice({ body, id, res, req, customData: userData }: PrivateMethodProps) {
+    let deviceID = helpers.getInputValueString(body, "device_number")
+    let deviceModel = helpers.getInputValueString(body, "device_model")
+    let deviceOEM = helpers.getInputValueString(body, "device_oem")
+    let optID = helpers.getOperatorAuthID(userData)
+    let qBuilder = {} as DashcamDeviceTypes
+
+    if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
+    if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
+    if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
+
+    if (!id) {
+      if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
+      if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
+      if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
+      qBuilder.created_by = "operator"
+      qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
+    }
+
+    if (deviceModel) {
+      if (!helpers.isAllowedCharacters(deviceModel)) {
+        return helpers.outputError(res, null, "Device model has invalid characters")
+      }
+      //if the length is too long or short
+      if (deviceModel.length < 2 || deviceModel.length > 120) {
+        return helpers.outputError(res, null, deviceModel.length < 2 ? "Device model is too short" : "Device model is too long")
+      }
+      qBuilder.device_model = deviceModel
+    }
+
+    if (deviceOEM) {
+      if (!helpers.isAllowedCharacters(deviceOEM)) {
+        return helpers.outputError(res, null, "Device OEM has invalid characters")
+      }
+      //if the length is too long or short
+      if (deviceOEM.length < 2 || deviceOEM.length > 120) {
+        return helpers.outputError(res, null, deviceOEM.length < 2 ? "Device OEM is too short" : "Device OEM is too long")
+      }
+      qBuilder.device_oem = deviceOEM
+    }
+
+    if (deviceID) {
+      if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
+        return helpers.outputError(res, null, "Device ID must be a number with length between 10 and 20")
+      }
+      //check if the device ID already exist
+      let checkDevice: SendDBQuery = await DashcamDeviceModel.findOne({ device_number: deviceID }).catch(e => ({ error: e }))
+      //check for error
+      if (checkDevice && checkDevice.error) {
+        console.log("Error checking existing device for registration", checkDevice.error)
+        return helpers.outputError(res, 500)
+      }
+      //if a record is found
+      if (checkDevice) return helpers.outputError(res, null, "Device ID already registered")
+
+      qBuilder.device_number = deviceID
+    }
+
+    if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "Nothing to update")
+
+    let saveDevice: SendDBQuery<DashcamDeviceTypes> = id ? await DashcamDeviceModel.findOneAndUpdate({ _id: id, operator_id: optID }, { $set: qBuilder },
+      { lean: true, new: true }).catch(e => ({ error: e })) : await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
+
+    //check for error
+    if (saveDevice && saveDevice.error) {
+      console.log("Error registering device by admin", saveDevice.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!saveDevice) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "device-register", body: id ? `Updated device - ${saveDevice.device_number} information` : `Registered a new device - ${deviceID}`,
+      data: { id: String(saveDevice._id), device_number: saveDevice.device_number },
+    }).catch(e => { })
+
+    return helpers.outputSuccess(res, {})
+  }
 
   //========**************VEHICLE SECTION***********=========================/
 
@@ -382,6 +605,9 @@ export class OperatorAssetService {
     let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
     let endDate = helpers.getInputValueString(query, "end_date")
+    let online = helpers.getInputValueString(query, "online")
+    let timezone = helpers.getInputValueString(query, "timezone")
+    let collectionID = helpers.getInputValueString(query, "collection_id")
     let page = helpers.getInputValueString(query, "page")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let component = helpers.getInputValueString(query, "component")
@@ -393,15 +619,19 @@ export class OperatorAssetService {
       qBuilder._id = new mongoose.Types.ObjectId(id)
     }
 
+    if (collectionID) {
+      //if not valid
+      if (!helpers.isInvalidID(collectionID)) return helpers.outputError(res, null, "Invalid collection ID")
+      qBuilder.collection_id = new mongoose.Types.ObjectId(collectionID)
+    }
+
     //chek start date if submitted
     if (startDate) {
       if (helpers.isDateFormat(startDate)) {
         return helpers.outputError(res, null, 'Invalid start date. must be in the formate YYYY-MM-DD');
       }
-      let sDate = new Date(startDate + "T00:00:00.000Z")
-      sDate.setHours(sDate.getHours() - 1)
-      // @ts-expect-error
-      qBuilder.createdAt = { $gte: sDate };
+      //if there's no end time
+      if (!endDate) return helpers.outputError(res, null, 'end_date is required when using start_date');
     }
 
     //chek end date if submitted
@@ -410,30 +640,49 @@ export class OperatorAssetService {
       if (helpers.isDateFormat(endDate)) {
         return helpers.outputError(res, null, 'Invalid end date. must be in the formate YYYY-MM-DD');
       }
-      if (!startDate) {
-        return helpers.outputError(res, null, 'end_date can only be used with start_date');
-      }
+      if (!startDate) return helpers.outputError(res, null, 'end_date can only be used with start_date');
+
+      //if there's no timezone, return
+      if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
 
       //check if the date are wrong
       if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
         return helpers.outputError(res, null, 'start date can not be greater than end date');
       }
+
+      //valida the timezone
+      if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+
+      let getUTCStart = helpers.convertDateTimeZone({
+        dateString: `${startDate}T00:00:00`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
+      let getUTCEnd = helpers.convertDateTimeZone({
+        dateString: `${endDate}T23:59:59`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
       // @ts-expect-error
-      qBuilder.createdAt.$lt = new Date(endDate + "T23:00:00.000Z")
+      qBuilder.createdAt = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
     }
 
-    //when online status is provided
-    if (status || status === "0") {
-      if (isNaN(parseFloat(status))) {
-        return helpers.outputError(res, null, "Invalid vehicle status.")
+    if (status) {
+      if (!["0", "1", "2"].includes(status)) {
+        return helpers.outputError(res, null, "Invalid status.")
       }
       qBuilder.status = parseInt(status)
     }
 
     //when online status is provided
-    if (deviceAssigned || deviceAssigned === "0") {
-      if (isNaN(parseFloat(deviceAssigned))) {
-        return helpers.outputError(res, null, "Invalid deviceAssigned.")
+    if (online) {
+      if (!["0", "1"].includes(online)) {
+        return helpers.outputError(res, null, "Invalid online status.")
+      }
+    }
+
+    //when online status is provided
+    if (deviceAssigned) {
+      if (!["0", "1"].includes(deviceAssigned)) {
+        return helpers.outputError(res, null, "Invalid device assigned status.")
       }
       qBuilder.device_assigned = parseInt(deviceAssigned)
     }
@@ -452,15 +701,22 @@ export class OperatorAssetService {
     let pipLine: PipelineQuery = [
       { $match: qBuilder },
       { $addFields: { vehicle_id: "$_id" } },
-      ...(component === "export" ? [
-        { $limit: 20000 },
-        { $sort: { _id: -1 as -1 } }
-      ] : [
-        { $sort: { _id: -1 as -1 } },
-        { $skip: pageItem.data.page },
-        { $limit: pageItem.data.item_per_page },
-      ]),
-      {
+      ...(online ? [{
+        $lookup: {
+          from: DatabaseTableList.dashcam_devices,
+          let: { deviceID: "$device_id" },
+          pipeline: [{
+            $match: { $expr: { $eq: ["$_id", "$$deviceID"] }, online: online === "1" },
+          }],
+          as: "device_data"
+        }
+      },
+      { $unwind: "$device_data" },
+      ] : []),
+      { $sort: { _id: -1 as -1 } },
+      { $skip: pageItem.data.page },
+      { $limit: pageItem.data.item_per_page },
+      ...(!online ? [{
         $lookup: {
           from: DatabaseTableList.dashcam_devices,
           let: { deviceID: "$device_id" },
@@ -471,6 +727,7 @@ export class OperatorAssetService {
         }
       },
       { $unwind: { path: "$device_data", preserveNullAndEmptyArrays: true } },
+      ] : []),
       {
         $lookup: {
           from: DatabaseTableList.collection_lists,
@@ -504,27 +761,27 @@ export class OperatorAssetService {
           pipLine = [
             { $match: qBuilder },
             {
+              $group: {
+                _id: null,
+                total_count: { $sum: 1 },
+                total_active: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
+                total_suspended: { $sum: { $cond: [{ $eq: ["$status", 2] }, 1, 0] } },
+                total_with_device: { $sum: { $cond: [{ $ifNull: ["$device_assigned", 1] }, 1, 0] } },
+              }
+            },
+            {
               $lookup: {
                 from: DatabaseTableList.dashcam_devices,
-                let: { deviceID: "$device_id" },
+                let: { optID: new mongoose.Types.ObjectId(optID) },
                 pipeline: [
-                  { $match: { $expr: { $eq: ["$_id", "$$deviceID"] } } },
-                  { $project: { online: 1 } }
+                  { $match: { $expr: { $eq: ["$operator_id", "$$optID"] }, online: true } },
+                  { $count: "total" }
                 ],
                 as: "device_data"
               }
             },
             { $unwind: { path: "$device_data", preserveNullAndEmptyArrays: true } },
-            {
-              $group: {
-                _id: null,
-                total_count: { $sum: 1 },
-                total_online: { $sum: { $cond: [{ $eq: ["$device_data.online", 1] }, 1, 0] } },
-                total_offline: { $sum: { $cond: [{ $ne: ["$device_data.online", 1] }, 1, 0] } },
-                total_with_device: { $sum: { $cond: [{ $ifNull: ["$device_assigned", 1] }, 1, 0] } },
-                total_shutdown: { $sum: { $cond: [{ $eq: ["$device_data.ioi", 1] }, 1, 0] } },
-              }
-            },
+            { $addFields: { total_online: "$device_data.total" } },
             { $unset: ["_id", "device_data"] }
           ]
           break;
@@ -708,6 +965,7 @@ export class OperatorAssetService {
     let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
     let endDate = helpers.getInputValueString(query, "end_date")
+    let timezone = helpers.getInputValueString(query, "timezone")
     let alarmType = helpers.getInputValueString(query, "alarm_type")
     let vehicleID = helpers.getInputValueString(query, "vehicle_id")
     let page = helpers.getInputValueString(query, "page")
@@ -728,20 +986,18 @@ export class OperatorAssetService {
       qBuilder.vehicle_id = new mongoose.Types.ObjectId(vehicleID)
     }
 
+    if (alarmType) {
+      //check if the value is valid
+      qBuilder.alarm_type = alarmType
+    }
+
     //chek start date if submitted
     if (startDate) {
       if (helpers.isDateFormat(startDate)) {
         return helpers.outputError(res, null, 'Invalid start date. must be in the formate YYYY-MM-DD');
       }
-      let sDate = new Date(startDate + "T00:00:00.000Z")
-      sDate.setHours(sDate.getHours() - 1)
-      // @ts-expect-error
-      qBuilder.createdAt = { $gte: sDate };
-    }
-
-    if (alarmType) {
-      //check if the value is valid
-      qBuilder.alarm_type = alarmType
+      //if there's no end time
+      if (!endDate) return helpers.outputError(res, null, 'end_date is required when using start_date');
     }
 
     //chek end date if submitted
@@ -750,16 +1006,29 @@ export class OperatorAssetService {
       if (helpers.isDateFormat(endDate)) {
         return helpers.outputError(res, null, 'Invalid end date. must be in the formate YYYY-MM-DD');
       }
-      if (!startDate) {
-        return helpers.outputError(res, null, 'end_date can only be used with start_date');
-      }
+      if (!startDate) return helpers.outputError(res, null, 'end_date can only be used with start_date');
+
+      //if there's no timezone, return
+      if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
 
       //check if the date are wrong
       if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
         return helpers.outputError(res, null, 'start date can not be greater than end date');
       }
+
+      //valida the timezone
+      if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+
+      let getUTCStart = helpers.convertDateTimeZone({
+        dateString: `${startDate}T00:00:00`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
+      let getUTCEnd = helpers.convertDateTimeZone({
+        dateString: `${endDate}T23:59:59`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
       // @ts-expect-error
-      qBuilder.createdAt.$lt = new Date(endDate + "T23:00:00.000Z")
+      qBuilder.createdAt = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
     }
 
     //when online status is provided

@@ -317,6 +317,24 @@ optOtherDoc.get_activity_logs = {
       description: "",
     },
     {
+      field: "start_date",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "end_date",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "timezone",
+      type: "String",
+      status: "optional",
+      description: "Required if start_date or end_date is provided. Generate with Intl.DateTimeFormat().resolvedOptions().timeZone",
+    },
+    {
       field: "page",
       type: "String",
       status: "optional",

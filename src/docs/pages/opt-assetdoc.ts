@@ -137,6 +137,12 @@ optAssets.get_vehicle = {
       description: "",
     },
     {
+      field: "timezone",
+      type: "String",
+      status: "optional",
+      description: "Required when filtering by date. Generate with Intl.DateTimeFormat().resolvedOptions().timeZone",
+    },
+    {
       field: "device_assigned",
       type: "String",
       status: "optional",
@@ -199,6 +205,73 @@ optAssets.delete_vehicle = {
       type: "Array",
       status: "required",
       description: "Array of vehicle IDs to delete",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
+
+optAssets.add_new_device = {
+  title: "Add New Device",
+  header: "Header-> Authorization: Bearer {{token}}",
+  sidebar: "Add New Device",
+  comment: "For Update, use PUT with the deviceID in the URL",
+  method: "POST|PUT",
+  url: "http(s)://base-url/operators/assets/device-lists",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "device_number",
+      type: "String",
+      status: "required",
+      description: "",
+    },
+    {
+      field: "device_model",
+      type: "String",
+      status: "required",
+      description: "",
+    },
+    {
+      field: "device_oem",
+      type: "String",
+      status: "required",
+      description: "",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
+optAssets.assign_device_to_vehicle = {
+  title: "Assign Device to Vehicle or Unassign Device from Vehicle",
+  header: "Header-> Authorization: Bearer token,",
+  sidebar: "Assign/Unassign Device",
+  comment: "",
+  method: "PATCH",
+  url: "http(s)://base-url/operators/assets/device-lists/{{device_id}}?component=assign|unassign",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "vehicle_id",
+      type: "String",
+      status: "optional",
+      description: "ID of the vehicle to assign or unassign the device to/from",
     },
   ],
   response: `   {
@@ -271,6 +344,30 @@ optAssets.get_device_list = {
    }`
 }
 
+optAssets.delete_device = {
+  title: "Delete Device",
+  header: "Header-> Authorization: Bearer token,",
+  sidebar: "Delete Device",
+  comment: "",
+  method: "DELETE",
+  url: "http(s)://base-url/operators/assets/device-lists/{{device_id}}",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
+
+
 optAssets.update_alarm_status = {
   title: "Update Alarm",
   header: "Header-> Authorization: Bearer token,",
@@ -341,6 +438,12 @@ optAssets.get_alarm = {
       type: "String",
       status: "optional",
       description: "",
+    },
+    {
+      field: "timezone",
+      type: "String",
+      status: "optional",
+      description: "Required when filtering by date. Generate with Intl.DateTimeFormat().resolvedOptions().timeZone",
     },
     {
       field: "alarm_type",
@@ -529,16 +632,87 @@ optAssets.delete_collection = {
 }
 
 
+optAssets.assign_collection_to_personnel = {
+  title: "Assign or Remove Collection from Team Member",
+  header: "Header-> Authorization: Bearer {{token}}",
+  sidebar: "Assign Admin Collection",
+  comment: "",
+  method: "PATCH",
+  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "team_id",
+      type: "String",
+      status: "required",
+      description: "ID of the team member to assign or remove collection access",
+    },
+    {
+      field: "request_type",
+      type: "String",
+      status: "required",
+      description: "1=Assign | 2=Remove",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
+optAssets.assign_collection_to_vehicle = {
+  title: "Assign or Remove Collection from Vehicle",
+  header: "Header-> Authorization: Bearer {{token}}",
+  sidebar: "Assign vehicle Collection",
+  comment: "",
+  method: "PUT",
+  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "vehicle_ids",
+      type: "Array",
+      status: "required",
+      description: "ID of the vehicle to assign or remove collection access",
+    },
+    {
+      field: "request_type",
+      type: "String",
+      status: "required",
+      description: "1=Assign | 2=Remove",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
+
+
 const RouteContainer = [
   {
     name: "Vehicle List & Devices",
     route: "operator",
     routes: [
+      optAssets.add_new_device,
+      optAssets.assign_device_to_vehicle,
+      optAssets.get_device_list,
+      optAssets.delete_device,
       optAssets.add_new_vehicle,
       optAssets.update_vehicle_status,
       optAssets.get_vehicle,
       optAssets.delete_vehicle,
-      optAssets.get_device_list,
     ]
   },
   {
@@ -549,6 +723,8 @@ const RouteContainer = [
       optAssets.update_collection_status,
       optAssets.get_collection_list,
       optAssets.delete_collection,
+      optAssets.assign_collection_to_personnel,
+      optAssets.assign_collection_to_vehicle,
     ]
   },
   {

@@ -13,9 +13,15 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
 
   async deviceLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
-    return OperatorAssetService.GetDevices({
-      req: this.req, res: this.res, query: this.req.query,
-      body: this.req.body, customData: this._custom_data, id
+    return this.__run({
+      post: OperatorAssetService.RegisterDevice,
+      put: OperatorAssetService.RegisterDevice,
+      get: OperatorAssetService.GetDevices,
+      patch: this.query.component === "assign" ? OperatorAssetService.AssignDeviceToVehicle :
+        this.query.component === "unassign" ? OperatorAssetService.UnassignDeviceFromVehicle :
+          () => helpers.outputError(this.res, null, "Invalid component"),
+      delete: OperatorAssetService.DeleteDevice,
+      id: { put: "required", get: "optional", patch: "required", delete: "required" },
     })
   }
 
@@ -40,6 +46,16 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
       patch: OperatorOtherService.UpdateCollection,
       delete: OperatorOtherService.DeleteCollection,
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
+    })
+  }
+
+
+  async assignCollections(id: string | undefined) {
+    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    return this.__run({
+      put: OperatorOtherService.AssignVehicleToCollection,
+      patch: OperatorOtherService.AssignCollectionToPersonnel,
+      id: { put: "required", patch: "required" },
     })
   }
 
