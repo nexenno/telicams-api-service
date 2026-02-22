@@ -56,7 +56,7 @@ export class OperatorAccountController extends SimpleNodeJsController {
         })
       case "STREAM_STARTED":
       case "STREAM_STOPPED":
-        return GatewayHookService.HandleStreamStartedAndStopped({
+        return GatewayHookService.HandleDeviceStreamStartedAndStopped({
           req: this.req, res: this.res, query: this.req.query,
           body: this.req.body, customData: {} as any
         })
@@ -64,6 +64,15 @@ export class OperatorAccountController extends SimpleNodeJsController {
         return helpers.outputError(this.res, null, "Unknown event type")
     }
 
+  }
+
+  async deviceLocation() {
+    //if method is not post
+    if (this.req.method !== "POST") return helpers.outputError(this.res, null, "Invalid request method")
+    return GatewayHookService.HandleDeviceLocationUpdate({
+      req: this.req, res: this.res, query: this.req.query,
+      body: this.req.body, customData: {} as any
+    })
   }
 
 }

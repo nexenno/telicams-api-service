@@ -4,100 +4,17 @@ import { mongoose } from "../models/dbConnector";
 import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 import { DatabaseTableList, varConfig } from "../assets/var-config";
+import { DashcamAlarmModel, DashcamAlarmTypes } from "../models/device-data";
 
 export class OperatorAssetService {
 
 
   //========**************DEVICE  SECTION***********=========================/
-  static async RegisterDevice({ body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let deviceID = helpers.getInputValueString(body, "device_number")
-    let deviceModel = helpers.getInputValueString(body, "device_model")
-    let deviceOEM = helpers.getInputValueString(body, "device_oem")
-    let optID = helpers.getOperatorAuthID(userData)
-    let qBuilder = {} as DashcamDeviceTypes
-
-    if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-    if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
-    if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
-
-    if (!id) {
-      if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-      if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
-      if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
-      qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
-      qBuilder.created_by = "operator"
-    }
-
-    if (deviceModel) {
-      if (!helpers.isAllowedCharacters(deviceModel)) {
-        return helpers.outputError(res, null, "Device model has invalid characters")
-      }
-      //if the length is too long or short
-      if (deviceModel.length < 2 || deviceModel.length > 120) {
-        return helpers.outputError(res, null, deviceModel.length < 2 ? "Device model is too short" : "Device model is too long")
-      }
-      qBuilder.device_model = deviceModel
-    }
-
-    if (deviceOEM) {
-      if (!helpers.isAllowedCharacters(deviceOEM)) {
-        return helpers.outputError(res, null, "Device OEM has invalid characters")
-      }
-      //if the length is too long or short
-      if (deviceOEM.length < 2 || deviceOEM.length > 120) {
-        return helpers.outputError(res, null, deviceOEM.length < 2 ? "Device OEM is too short" : "Device OEM is too long")
-      }
-      qBuilder.device_oem = deviceOEM
-    }
-
-    if (deviceID) {
-      if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
-        return helpers.outputError(res, null, "Device ID must be a number with length between 10 and 20")
-      }
-      //check if the device ID already exist
-      let checkDevice: SendDBQuery = await DashcamDeviceModel.findOne({ device_number: deviceID }).catch(e => ({ error: e }))
-      //check for error
-      if (checkDevice && checkDevice.error) {
-        console.log("Error checking existing device for registration", checkDevice.error)
-        return helpers.outputError(res, 500)
-      }
-      //if a record is found
-      if (checkDevice) return helpers.outputError(res, null, "Device ID already registered")
-
-      qBuilder.device_number = deviceID
-    }
-
-    if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "Nothing to update")
-
-    let saveDevice: SendDBQuery = id ? await DashcamDeviceModel.findOneAndUpdate({
-      _id: id, operator_id: new mongoose.Types.ObjectId(optID)
-    }, { $set: qBuilder }, { lean: true, new: true }).catch(e => ({ error: e })) :
-      await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
-
-    //check for error
-    if (saveDevice && saveDevice.error) {
-      console.log("Error registering device by operator", saveDevice.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!saveDevice) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "device-register", body: id ? `Updated device - ${saveDevice.device_model} information` : `Registered a new device - ${saveDevice.device_model}`,
-    //   data: { id: String(saveDevice._id), device_number: saveDevice.device_number },
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res, {})
-
-  }
-
   static async GetDevices({ query, body, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let page = helpers.getInputValueString(query, "page")
     let activeStatus = helpers.getInputValueString(query, "active_status")
-    let assignStatus = helpers.getInputValueString(query, "assign_status")
     let component = helpers.getInputValueString(query, "component")
     let optID = helpers.getOperatorAuthID(userData)
 
@@ -115,13 +32,6 @@ export class OperatorAssetService {
     } else {
       //@ts-ignore
       qBuilder.active_status = { $ne: 3 }
-    }
-
-    if (assignStatus) {
-      if (!["0", "1"].includes(assignStatus)) {
-        return helpers.outputError(res, null, "Invalid assign status")
-      }
-      qBuilder.assign_status = parseInt(assignStatus)
     }
 
     if (q) {
@@ -188,100 +98,10 @@ export class OperatorAssetService {
 
   }
 
-  static async DeleteDevice({ body, res, req, id, customData: userData }: PrivateMethodProps) {
-    let optID = helpers.getOperatorAuthID(userData)
-
-    let getData: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
-      operator_id: new mongoose.Types.ObjectId(optID),
-      _id: new mongoose.Types.ObjectId(id)
-    }).lean().catch((e) => ({ error: e }));
-
-    //check for error
-    if (getData && getData.error) {
-      console.log("Error finding device by operator to delete", getData.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!getData) return helpers.outputError(res, null, "Device not found")
-
-    //if the device was not added by the operator
-    if (getData.created_by !== "operator" || getData.active_status === 3) {
-      return helpers.outputError(res, null, "This device cannot be deleted by your team. Please contact support for assistance")
-    }
-
-    let deleteResult: SendDBQuery = await DashcamDeviceModel.findByIdAndDelete(id).lean().catch((e) => ({ error: e }));
-
-    if (deleteResult && deleteResult.error) {
-      console.log("Error deleting device by operator", deleteResult.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!deleteResult) return helpers.outputError(res, null, "Device not found");
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "device-delete", body: `Deleted device - ${getData.device_model}`,
-    //   data: { id: String(getData._id), device_id: getData.device_id },
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res, {})
-  }
-
-  static async UpdateDeviceStatus({ body, res, req, id, customData: userData }: PrivateMethodProps) {
-    let status = helpers.getInputValueString(body, "status")
-    let reason = helpers.getInputValueString(body, "reason")
-    let optID = helpers.getOperatorAuthID(userData)
-
-    if (!status) return helpers.outputError(res, null, "Status is required")
-
-    if (!["0", "1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status")
-    if (status === "2" && !reason) return helpers.outputError(res, null, "Suspension reason is required")
-    if (reason && (reason.length < 5 || reason.length > 300)) {
-      return helpers.outputError(res, null, "Suspension reason must be between 5 and 300 characters")
-    }
-
-    let getData: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
-      operator_id: new mongoose.Types.ObjectId(optID), _id: new mongoose.Types.ObjectId(id)
-    }).lean().catch((e) => ({ error: e }));
-
-    //check for error
-    if (getData && getData.error) {
-      console.log("Error finding device by operator to update status", getData.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!getData) return helpers.outputError(res, null, "Device not found")
-
-    //if the device was decommissioned by admin
-    if (getData.active_status === 3) {
-      return helpers.outputError(res, null, "This device cannot be updated by your team. Please contact support for assistance")
-    }
-
-    let saveDevice: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
-      $set: { active_status: parseInt(status), suspension_reason: reason }
-    }, { new: true }).catch(e => ({ error: e }))
-
-    //check for error
-    if (saveDevice && saveDevice.error) {
-      console.log("Error updating device status by operator", saveDevice.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!saveDevice) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "device-status-update", body: `Updated device - ${getData.device_model} status to ${["Inactive", "Active", "Suspended"][parseInt(status)]}`,
-    //   data: { id: String(getData._id), device_id: getData.device_id, new_status: status, suspension_reason: reason },
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res, {})
-  }
-
 
   //========**************VEHICLE SECTION***********=========================/
 
-  static async AddVehicles({ body, id, res, req, customData: userData }: PrivateMethodProps) {
+  static async AddVehicles({ body, id, res, customData: userData }: PrivateMethodProps) {
     let plateNo = helpers.getInputValueString(body, "plate_number");
     let vehOEM = helpers.getInputValueString(body, "vehicle_oem");
     let vehModel = helpers.getInputValueString(body, "vehicle_model");
@@ -411,7 +231,7 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res);
   }
 
-  static async BulkUploadVehicle({ body, res, req, customData: userData }: PrivateMethodProps) {
+  static async BulkUploadVehicle({ body, res, customData: userData }: PrivateMethodProps) {
 
     const regex = /Content-Type: text\/csv\r?\n\r?\n([\s\S]*?)\r?\n--/i;
 
@@ -546,7 +366,7 @@ export class OperatorAssetService {
     })
   }
 
-  static async GetVehicles({ query, body, id, res, req, customData: userData }: PrivateMethodProps) {
+  static async GetVehicles({ query, body, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let deviceAssigned = helpers.getInputValueString(query, "device_assigned")
     let status = helpers.getInputValueString(query, "status")
@@ -721,7 +541,7 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res, getData)
   }
 
-  static async DeleteVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+  static async DeleteVehicle({ body, res, id, customData: userData }: PrivateMethodProps) {
     let optID = helpers.getOperatorAuthID(userData)
     //if there's no schedule data
     let getData: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
@@ -764,7 +584,7 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res)
   }
 
-  static async SuspendedVehicles({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+  static async SuspendedVehicles({ body, res, id, customData: userData }: PrivateMethodProps) {
     let status = helpers.getInputValueString(body, "status")
     let reason = helpers.getInputValueString(body, "reason")
     let optID = helpers.getOperatorAuthID(userData)
@@ -833,200 +653,95 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res);
   }
 
-  static async AssignVehicleDevice({ body, res, req, id: vehicleID, customData: userData }: PrivateMethodProps) {
-    let deviceID = helpers.getInputValueString(body, "device_id");
-    let optID = helpers.getOperatorAuthID(userData)
-
-    if (!deviceID) return helpers.outputError(res, null, "Device id is required")
-
-    if (helpers.isInvalidID(deviceID)) return helpers.outputError(res, null, "Invalid device id")
-
-    let checkDeviceExist: SendDBQuery = await DashcamDeviceModel.findOne({
-      _id: new mongoose.Types.ObjectId(deviceID), operator_id: new mongoose.Types.ObjectId(optID)
-    }, null, { lean: true }).catch(e => ({ error: e }))
-
-    if (checkDeviceExist && checkDeviceExist.error) {
-      console.log("Error checking device for assign vehicle", checkDeviceExist.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!checkDeviceExist) return helpers.outputError(res, null, "Select device not found")
-
-    let deviceAssignStatus: SendDBQuery = await OptVehicleListModel.findOne({ device_id: deviceID }, null,
-      { lean: true }).catch(e => ({ error: e }))
-
-    //check for error
-    if (deviceAssignStatus && deviceAssignStatus.error) {
-      console.log("Error checking device has been assigned", deviceAssignStatus.error)
-      return helpers.outputError(res, 500)
-    }
-
-    //if the query does not execute
-    if (deviceAssignStatus) return helpers.outputError(res, null, "This device has been assigned to a vehicle already")
-
-    //get the vehicle data 
-    let getVeh: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({ _id: vehicleID, operator_id: optID },
-      null, { lean: true }).catch(e => ({ error: e }));
-
-    //check for error
-    if (getVeh && getVeh.error) {
-      console.log("Error checking if vehicle is assigned", getVeh.error)
-      return helpers.outputError(res, 500)
-    }
-
-    //if the vehicle not found
-    if (!getVeh) return helpers.outputError(res, null, "Selected vehicle not found")
-
-    //if the vehicle is already assigned
-    if (getVeh && getVeh.device_assigned === true && getVeh.device_id) {
-      return helpers.outputError(res, null, "This vehicle is already assigned to a device. Please unassign the current device first to assign a new one.")
-    }
-
-    //update the vehicle and rider table
-    let Assignveh: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(vehicleID, {
-      $set: { device_assigned: 1, device_id: deviceID, device_assigned_at: new Date() }
-    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
-
-    if (Assignveh && Assignveh.error) {
-      console.log("Error assigning vehicle by operator", Assignveh.error)
-      return helpers.outputError(res, 500)
-    }
-
-    //if the query does not execute
-    if (!Assignveh) {
-      return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-    }
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string, operation: "assign-vehicle",
-    //   data: { id: vehicleID, plate_number: getVeh.plate_number },
-    //   body: `Assigned ${getVeh.plate_number} vehicle to rider - ${checkRiderExist.full_name}`
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res)
-  }
-
-  static async UnAssignVehicleDevice({ body, res, req, id: vehicleID, customData: userData }: PrivateMethodProps) {
-    let optID = helpers.getOperatorAuthID(userData)
-
-    //get the vehicle data 
-    let getVeh: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      _id: vehicleID, operator_id: optID,
-    }).populate("device_id", "device_number", DashcamDeviceModel).lean().catch((e: object) => ({ error: e }));
-
-    //check for error
-    if (getVeh && getVeh.error) {
-      console.log("Error checking vehicle on unassign", getVeh.error)
-      return helpers.outputError(res, 500)
-    }
-
-    //if the query does not execute
-    if (!getVeh) return helpers.outputError(res, null, "Device not found on this vehicle")
-
-    //if the vehicle is not assigned to any device
-    if (!getVeh.device_assigned || !getVeh.device_id) {
-      return helpers.outputError(res, null, "This vehicle is not assigned to any device")
-    }
-
-    //update the vehicle and rider table
-    let Assignveh: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(vehicleID, {
-      $unset: { device_id: 1 }, $set: { device_assigned: 0 }
-    }, { lean: true, new: true }).catch(e => ({ error: e }))
-
-    if (Assignveh && Assignveh.error) {
-      console.log("Error assigning vehicle", Assignveh.error)
-      return helpers.outputError(res, 500)
-    }
-
-    //if the query does not execute
-    if (!Assignveh) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "unassign-vehicle",
-    //   data: { id: vehicleID, plate_number: getVeh.plate_number },
-    //   body: `Unassigned ${getVeh.plate_number} from ${getVeh.rider_id.full_name}`
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res)
-  }
-
-
-  //========**************COLLECTION SECTION***********=========================/
-  static async CreateCollection({ body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let name = helpers.getInputValueString(body, "name")
-    let description = helpers.getInputValueString(body, "description")
-    let optID = helpers.getOperatorAuthID(userData)
-    let qBuilder = {} as ObjectPayload
-
-    if (!id) {
-      if (!name) return helpers.outputError(res, null, "Collection name is required")
-      qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
-    }
-
-    if (name) {
-      //if the length is invalid
-      if (name.length < 2 || name.length > 45) {
-        return helpers.outputError(res, null, "Collection name must be between 2 and 45 characters")
-      }
-      //if the characters are invalid
-      if (!helpers.isAllowedCharacters(name)) {
-        return helpers.outputError(res, null, "Collection name contains invalid characters")
-      }
-      qBuilder.name = name
-    }
-
-    if (description) {
-      if (description.length < 5 || description.length > 300) {
-        return helpers.outputError(res, null, "Collection description must be between 5 and 300 characters")
-      }
-      qBuilder.description = description
-    }
-
-    if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "No data to process")
-
-    let createColl: SendDBQuery = id ? CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: qBuilder }, { new: true, lean: true }).catch(e => ({ error: e })) :
-      await CollectionListModel.create(qBuilder).catch(e => ({ error: e }));
-
-    //if there's error in creating the account
-    if (createColl && createColl.error) {
-      console.log("Error creating collection", createColl.error)
-      return helpers.outputError(res, 500)
-    }
-    //if query failed
-    if (!createColl) {
-      return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-    }
-
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "create-collection", data: { id: String(createColl._id), name: createColl.name },
-    //   body: id ? `Updated collection - ${createColl.name}` : `Created a new collection - ${createColl.name}`
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res);
-  }
-
-  static async GetCollections({ query, body, id, res, req, customData: userData }: PrivateMethodProps) {
+  //========**************ALARM SECTION***********=========================/
+  static async GetAlarmData({ query, body, id, res, req, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
+    let status = helpers.getInputValueString(query, "status")
+    let startDate = helpers.getInputValueString(query, "start_date")
+    let endDate = helpers.getInputValueString(query, "end_date")
+    let alarmType = helpers.getInputValueString(query, "alarm_type")
+    let vehicleID = helpers.getInputValueString(query, "vehicle_id")
     let page = helpers.getInputValueString(query, "page")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let component = helpers.getInputValueString(query, "component")
     let optID = helpers.getOperatorAuthID(userData)
 
-    let qBuilder = { operator_id: new mongoose.Types.ObjectId(optID) } as ObjectPayload
+    let qBuilder = { operator_id: new mongoose.Types.ObjectId(optID) } as DashcamAlarmTypes
 
     if (id) {
       qBuilder._id = new mongoose.Types.ObjectId(id)
     }
 
+    if (vehicleID) {
+      if (helpers.isInvalidID(vehicleID)) {
+        return helpers.outputError(res, null, "Invalid vehicle ID")
+      }
+      qBuilder.vehicle_id = new mongoose.Types.ObjectId(vehicleID)
+    }
+
+    //chek start date if submitted
+    if (startDate) {
+      if (helpers.isDateFormat(startDate)) {
+        return helpers.outputError(res, null, 'Invalid start date. must be in the formate YYYY-MM-DD');
+      }
+      let sDate = new Date(startDate + "T00:00:00.000Z")
+      sDate.setHours(sDate.getHours() - 1)
+      // @ts-expect-error
+      qBuilder.createdAt = { $gte: sDate };
+    }
+
+    if (alarmType) {
+      //check if the value is valid
+      qBuilder.alarm_type = alarmType
+    }
+
+    //chek end date if submitted
+    if (endDate) {
+      //if start date is not submitted
+      if (helpers.isDateFormat(endDate)) {
+        return helpers.outputError(res, null, 'Invalid end date. must be in the formate YYYY-MM-DD');
+      }
+      if (!startDate) {
+        return helpers.outputError(res, null, 'end_date can only be used with start_date');
+      }
+
+      //check if the date are wrong
+      if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
+        return helpers.outputError(res, null, 'start date can not be greater than end date');
+      }
+      // @ts-expect-error
+      qBuilder.createdAt.$lt = new Date(endDate + "T23:00:00.000Z")
+    }
+
+    //when online status is provided
+    if (status || status === "0") {
+      if (isNaN(parseFloat(status))) {
+        return helpers.outputError(res, null, "Invalid vehicle status.")
+      }
+      qBuilder.status = parseInt(status)
+    }
+
+    //validate the data one after the other
     if (q) {
       if (helpers.hasInvalidSearchChar(q)) {
         return helpers.outputError(res, null, "Special characters not allowed on search.")
       }
-      qBuilder.name = { $regex: q, $options: 'i' } as any
+      //get the vehicle with the plate number
+      let getVeh: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+        plate_number: q, operator_id: optID
+      }, null, { lean: true }).catch(e => ({ error: e }))
+
+      //check for error
+      if (getVeh && getVeh.error) {
+        console.log("Error getting vehicle for alarm search", getVeh.error)
+        return helpers.outputError(res, 500)
+      }
+
+      if (getVeh) {
+        qBuilder.vehicle_id = getVeh._id
+      } else {
+        qBuilder.alarm_ref = q
+      }
     }
 
     let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
@@ -1034,100 +749,69 @@ export class OperatorAssetService {
 
     let pipLine: PipelineQuery = [
       { $match: qBuilder },
+      { $addFields: { alarm_id: "$_id" } },
       { $sort: { _id: -1 as -1 } },
-      ...(component === "export" ? [
-        { $limit: 20000 },
-      ] : [
-        { $skip: pageItem.data.page },
-        { $limit: pageItem.data.item_per_page },
-      ]),
+      { $skip: pageItem.data.page },
+      { $limit: pageItem.data.item_per_page },
       {
         $lookup: {
-          from: DatabaseTableList.vehicle_lists,
-          let: { collID: "$_id" },
-          pipeline: [{
-            $match: { $expr: { $eq: ["$collection_id", "$$collID"] } },
-          }, {
-            $count: "total"
-          }],
-          as: "vehicle_count"
+          from: DatabaseTableList.operator_vehicle_docs,
+          let: { vehID: "$vehicle_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$vehID"] } }, },
+            { $project: { plate_number: 1 } }
+          ],
+          as: "vehicle_data"
         }
       },
-      { $unwind: { path: "$vehicle_count", preserveNullAndEmptyArrays: true } },
-      { $addFields: { total_vehicle: { $ifNull: ["$vehicle_count.total", 0] } } },
-      { $unset: ["__v", "_id", "vehicle_count"] }
+      { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
+      { $addFields: { plate_number: "$vehicle_data.plate_number" } },
+      { $unset: ["__v", "_id", "vehicle_data"] },
     ]
 
-    let getData: SendDBQuery = await CollectionListModel.aggregate(pipLine).catch(e => ({ error: e }))
+    if (component) {
+      switch (component) {
+        case "count":
+          pipLine = [
+            { $match: qBuilder },
+            { $count: "total" },
+            { $unset: "_id" }
+          ]
+          break;
+        case "count-status":
+          pipLine = [
+            { $match: qBuilder },
+            {
+              $group: {
+                _id: null,
+                total_count: { $sum: 1 },
+                total_resolved: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
+                total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 0] }, 1, 0] } },
+              }
+            },
+            { $unset: ["_id"] }
+          ]
+          break;
+        case "export":
+          return helpers.outputError(res, null, "Not Ready Yet!")
+        default:
+          return helpers.outputError(res, null, "invalid component")
+      }
+
+    }
+
+    let getData: SendDBQuery = await DashcamAlarmModel.aggregate(pipLine).catch(e => ({ error: e }))
 
     //check error
     if (getData && getData.error) {
-      console.log("Error getting collection list", getData.error)
+      console.log("Error getting operator alarm list", getData.error)
       return helpers.outputError(res, 500)
     }
 
     if (component || id) {
       getData = getData.length ? getData[0] : {}
     }
-
-    return helpers.outputSuccess(res, getData)
-  }
-
-  static async DeleteCollection({ query, body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let optID = helpers.getOperatorAuthID(userData)
-
-    //check if the collection exist
-    let getCol: SendDBQuery = await CollectionListModel.findOneAndDelete({
-      _id: id, operator_id: optID
-    }).catch(e => ({ error: e }))
-
-    //check for error
-    if (getCol && getCol.error) {
-      console.log("Error checking collection for delete", getCol.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!getCol) return helpers.outputError(res, null, "Collection not found")
-
-    // TODO://remove the collection id from all the vehicles under this collection
-    // TODO://remove all users on collection off
-
-    return helpers.outputSuccess(res)
-  }
-
-  static async UpdateCollection({ body, res, req, id, customData: userData }: PrivateMethodProps) {
-    let status = helpers.getInputValueString(body, "status")
-    let optID = helpers.getOperatorAuthID(userData)
-
-    if (!status) return helpers.outputError(res, null, "Status is required")
-    if (["1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status")
-
-    //if status is 2, check if there's any active vehicle under the collection
-    if (status === "2") {
-      let activeVeh: SendDBQuery = await OptVehicleListModel.findOne({
-        collection_id: id, operator_id: optID
-      }).catch(e => ({ error: e }))
-
-      if (activeVeh && activeVeh.error) {
-        console.log("Error checking active vehicle on collection update", activeVeh.error)
-        return helpers.outputError(res, 500)
-      }
-
-      if (activeVeh) return helpers.outputError(res, null, "There are vehicles under this collection. Action Aborted!")
-    }
-
-    let updateCol: SendDBQuery = await CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: { status: parseInt(status) } }, { new: true }).catch(e => ({ error: e }))
-
-    if (updateCol && updateCol.error) {
-      console.log("Error updating collection status", updateCol.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!updateCol) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-    return helpers.outputSuccess(res)
-
+    return helpers.outputSuccess(res, getData);
   }
 
 }

@@ -4,13 +4,14 @@ import {
   MakeHTTPReqProp, ObjectPayload, IsNumberProp,
   JWTTokenPayload,
   SendDBQuery,
+  ConnectedDeviceValues,
 } from "../typings/general"
 // import { AdminLogModel, OperatorLogModel } from "../models/activity-logs"
 import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
 import { DashcamDeviceModel } from "../models/device-lists"
 import { DashcamActivityLogModel } from "../models/device-data"
 
-export const GlobalConnectedDevices: Map<string, { operator_id: string; device_id: string }> = new Map() //for storing connected devices and their auth_id
+export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
 
 
 export default class helpers {
@@ -320,11 +321,15 @@ export default class helpers {
     }
     //fetch the data from the database and store it in the map
     let deviceData: SendDBQuery = await DashcamDeviceModel.findOne({ device_number: deviceNumber },
-      { operator_id: 1, _id: 1 }).lean().catch(e => ({ error: e }))
+      { operator_id: 1, vehicle_id: 1, _id: 1 }).lean().catch(e => ({ error: e }))
 
     //if there's data and no error, store it in the map and return the data
     if (deviceData && !deviceData.error) {
-      let sendData = { operator_id: deviceData.operator_id, device_id: String(deviceData._id) }
+      let sendData = {
+        operator_id: String(deviceData.operator_id),
+        vehicle_id: String(deviceData.vehicle_id),
+        device_id: String(deviceData._id)
+      }
       GlobalConnectedDevices.set(deviceNumber, sendData)
       return sendData
     }
@@ -335,7 +340,7 @@ export default class helpers {
   //for logging dashcam activity
   static async logDashcamActivity(data: {
     operator_id?: string, device_id: string, activity_type: string,
-    activity_detail?: ObjectPayload, message: string
+    activity_detail?: ObjectPayload, message: string; vehicle_id?: string,
   }): Promise<void> {
 
     //if there's no valid data

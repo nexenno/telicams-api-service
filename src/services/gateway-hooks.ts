@@ -1,5 +1,5 @@
 import helpers, { GlobalConnectedDevices } from "../assets/helpers";
-import { DashcamAlarmModel } from "../models/device-data";
+import { DashcamAlarmModel, DashcamLocationModel } from "../models/device-data";
 import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 import { PrivateMethodProps, SendDBQuery } from "../typings/general";
 
@@ -58,7 +58,9 @@ export class GatewayHookService {
     if (!getDevice) return helpers.outputError(res, 404, "Device not found.")
 
     //if the device is not active for registration, return an error
-    if (getDevice.active_status !== 1) return helpers.outputError(res, null, "Device is not active for registration")
+    if (getDevice.active_status !== 1 || !getDevice.operator_id) {
+      return helpers.outputError(res, null, "Device is not active for registration")
+    }
 
     //if the gateway status already registered
     if (getDevice.gateway_status === 1) return res.status(200).json({ approved: true })
@@ -82,7 +84,8 @@ export class GatewayHookService {
     //log the registration activity
     await helpers.logDashcamActivity({
       device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
-      activity_type: "DEVICE_REGISTRATION", activity_detail: { deviceID, manufacturer, model, provinceID, cityID, licensePlate },
+      activity_type: "DEVICE_REGISTRATION", vehicle_id: updateDevice.vehicle_id,
+      activity_detail: { deviceID, manufacturer, model, provinceID, cityID, licensePlate },
       message: `Device ${deviceID} registered successfully.`
     })
 
@@ -142,12 +145,17 @@ export class GatewayHookService {
     if (!updateDevice) return
 
     //set global connected 
-    GlobalConnectedDevices.set(deviceID, { device_id: String(updateDevice._id), operator_id: updateDevice.operator_id || "" })
+    GlobalConnectedDevices.set(deviceID, {
+      device_id: String(updateDevice._id),
+      operator_id: String(updateDevice.operator_id || ""),
+      vehicle_id: String(updateDevice.vehicle_id || "")
+    })
 
     // log the connection event in the database for analytics and monitoring
     helpers.logDashcamActivity({
       device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
-      activity_type: "DEVICE_CONNECTED", activity_detail: { deviceID, manufacturer, model, reconnectCount, connectedAt },
+      activity_type: "DEVICE_CONNECTED", vehicle_id: updateDevice.vehicle_id,
+      activity_detail: { deviceID, manufacturer, model, reconnectCount, connectedAt },
       message: `Device ${deviceID} connected successfully.`
     })
   }
@@ -196,6 +204,7 @@ export class GatewayHookService {
     helpers.logDashcamActivity({
       device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
       activity_type: "DEVICE_DISCONNECTED", activity_detail: {},
+      vehicle_id: updateDevice.vehicle_id,
       message: `Device ${deviceID} disconnected successfully.`
     })
   }
@@ -252,9 +261,10 @@ export class GatewayHookService {
     //log the alarm event in the database
     let logData: SendDBQuery = await DashcamAlarmModel.create({
       alarm_type: alarmType, severity: severity, status: 0,
+      vehicle_id: deviceData.vehicle_id || undefined,
       latitude: latitude, longitude: longitude, speed: speed,
       triggered_at: new Date(), alarm_ref: eventId, trigger_detail: body.detail,
-      operator_id: deviceData.operator_id || undefined, device_id: deviceData.device_id
+      operator_id: deviceData.operator_id, device_id: deviceData.device_id
     }).catch((e) => ({ error: e }));
 
     //if there's an error, return it
@@ -265,7 +275,8 @@ export class GatewayHookService {
     // log the alarm event in the database for analytics and monitoring
     helpers.logDashcamActivity({
       device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: "ALARM_TRIGGERED", activity_detail: { alarmType, severity, latitude, longitude, speed, eventId },
+      activity_type: "ALARM_TRIGGERED", vehicle_id: deviceData.vehicle_id,
+      activity_detail: { alarmType, severity, latitude, longitude, speed, eventId },
       message: `Alarm ${alarmType} triggered on device ${deviceID} with severity ${severity}.`
     })
   }
@@ -328,13 +339,14 @@ export class GatewayHookService {
     // log the alarm cleared event in the database for analytics and monitoring
     helpers.logDashcamActivity({
       device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: "ALARM_CLEARED", activity_detail: { alarmType, eventId },
+      activity_type: "ALARM_CLEARED", vehicle_id: deviceData.vehicle_id,
+      activity_detail: { alarmType, eventId },
       message: `Alarm ${alarmType} cleared on device ${deviceID}.`
     })
 
   }
 
-  static async HandleStreamStartedAndStopped({ res, body }: PrivateMethodProps) {
+  static async HandleDeviceStreamStartedAndStopped({ res, body }: PrivateMethodProps) {
     let deviceID = body.deviceId
     //     {
     //   "eventType": "STREAM_STARTED",
@@ -374,9 +386,86 @@ export class GatewayHookService {
     //log the stream event in the database for analytics and monitoring
     helpers.logDashcamActivity({
       device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: body.eventType, activity_detail: body,
+      activity_type: body.eventType, activity_detail: body, vehicle_id: deviceData.vehicle_id,
       message: `Stream event ${body.eventType} received for device ${deviceID}.`
     })
+  }
+
+  static async HandleDeviceLocationUpdate({ res, body }: PrivateMethodProps) {
+    // {
+    //   "deviceId": "628072951915",
+    //   "latitude": 6.5244,
+    //   "longitude": 3.3792,
+    //   "altitude": 15,
+    //   "speed": 45.0,
+    //   "direction": 180,
+    //   "gpsTime": "2026-02-21T10:30:00",
+    //   "accOn": true,
+    //   "positioned": true,
+    //   "alarmFlag": 0,
+    //   "statusFlag": 3,
+    //   "satelliteCount": 8,
+    //   "signalStrength": 24,
+    //   "mileage": 12500,
+    //   "timestamp": "2026-02-21T10:30:01"
+    // }
+    let deviceID = body.deviceId
+    let latitude = body.latitude
+    let longitude = body.longitude
+    let altitude = body.altitude
+    let speed = body.speed
+    let heading = body.direction
+    let gpsTime = body.gpsTime
+    let accOn = body.accOn
+
+    //validate the inputs
+    if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
+    if (!latitude) return helpers.outputError(res, null, "Latitude is required")
+    if (!longitude) return helpers.outputError(res, null, "Longitude is required")
+
+    //validate the device ID
+    if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
+      return helpers.outputError(res, null, "Device ID must be a number between 10 and 20 digits")
+    }
+    //validate latitude and longitude
+    if (latitude < -90 || latitude > 90) {
+      return helpers.outputError(res, null, "Latitude must be between -90 and 90")
+    }
+    if (longitude < -180 || longitude > 180) {
+      return helpers.outputError(res, null, "Longitude must be between -180 and 180")
+    }
+
+    //reply the gateway
+    res.status(200).json({ success: true })
+
+    let deviceData = await helpers.getConnectedDeviceData(deviceID)
+
+    //if device data is not found, return
+    if (!deviceData || !deviceData.device_id) {
+      // console.log("Connected device data not found for device ID ", deviceID)
+      return
+    }
+
+    let logData: SendDBQuery = await DashcamLocationModel.create({
+      device_id: deviceData.device_id, operator_id: deviceData.operator_id,
+      latitude, longitude, speed, heading, gps_timestamp: gpsTime,
+      acc_status: accOn ? 1 : 0,
+    }).catch((e) => ({ error: e }));
+
+    //if there's an error, return it
+    if (logData && logData.error) {
+      console.log("Error logging location update ", logData.error)
+      return
+    }
+
+    // log the location update event in the database for analytics and monitoring
+    helpers.logDashcamActivity({
+      device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
+      activity_type: "LOCATION_UPDATE", activity_detail: body,
+      message: `Location update received for device ${deviceID}.`,
+      vehicle_id: deviceData.vehicle_id
+    })
+
   }
 
 

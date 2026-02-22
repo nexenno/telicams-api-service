@@ -8,6 +8,11 @@ const DashcamList = new mongoose.Schema({
     index: true,
     ref: DatabaseTableList.user_operators,
   },
+  vehicle_id: {
+    type: Schema.Types.ObjectId,
+    index: true,
+    ref: DatabaseTableList.vehicle_lists,
+  },
   device_number: {
     type: String,
     index: true,
@@ -52,7 +57,7 @@ const DashcamList = new mongoose.Schema({
   },
   assign_status: {
     type: Number,
-    enum: [0, 1], //0 - not assigned, 1 - assigned
+    enum: [0, 1, 2], //0 - not assigned, 1 - assigned to operator, 2 - assigned to vehicle
     default: 0,
   },
   created_by: {

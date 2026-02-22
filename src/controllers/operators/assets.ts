@@ -1,6 +1,7 @@
 import { SimpleNodeJsController } from "@increase21/simplenodejs";
 import helpers from "../../assets/helpers";
 import { OperatorAssetService } from "../../services/opt-assets";
+import { OperatorOtherService } from "../../services/opt-others";
 
 export class OperatorVehicleController extends SimpleNodeJsController {
   protected __checkContext(): void {
@@ -13,27 +14,20 @@ export class OperatorVehicleController extends SimpleNodeJsController {
 
   async deviceLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
-    return this.__run({
-      post: OperatorAssetService.RegisterDevice,
-      put: OperatorAssetService.RegisterDevice,
-      get: OperatorAssetService.GetDevices,
-      patch: OperatorAssetService.UpdateDeviceStatus,
-      delete: OperatorAssetService.DeleteDevice,
-      id: { get: "optional", delete: "required", put: "required", patch: "required" },
+    return OperatorAssetService.GetDevices({
+      req: this.req, res: this.res, query: this.req.query,
+      body: this.req.body, customData: this._custom_data, id
     })
   }
 
 
   async vehicleLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
-    let component = this.req.query.component as string
     return this.__run({
       post: OperatorAssetService.AddVehicles,
       put: OperatorAssetService.AddVehicles,
       get: OperatorAssetService.GetVehicles,
-      patch: component === "status" ? OperatorAssetService.SuspendedVehicles : component === "assign" ?
-        OperatorAssetService.AssignVehicleDevice : component === "unassign" ? OperatorAssetService.UnAssignVehicleDevice :
-          () => helpers.outputError(this.res, null, component ? "Invalid component query" : "Component is required"),
+      patch: OperatorAssetService.SuspendedVehicles,
       delete: OperatorAssetService.DeleteVehicle,
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
     })
@@ -42,14 +36,16 @@ export class OperatorVehicleController extends SimpleNodeJsController {
   async collectionLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return this.__run({
-      post: OperatorAssetService.CreateCollection,
-      put: OperatorAssetService.CreateCollection,
-      get: OperatorAssetService.GetCollections,
-      patch: OperatorAssetService.UpdateCollection,
-      delete: OperatorAssetService.DeleteCollection,
+      post: OperatorOtherService.CreateCollection,
+      put: OperatorOtherService.CreateCollection,
+      get: OperatorOtherService.GetCollections,
+      patch: OperatorOtherService.UpdateCollection,
+      delete: OperatorOtherService.DeleteCollection,
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
     })
   }
+
+
 
 
 }
