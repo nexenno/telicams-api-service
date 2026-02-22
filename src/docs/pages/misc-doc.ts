@@ -1,8 +1,8 @@
 import { ObjectPayload } from "../../typings/general"
 
-const miscelleanous = {} as ObjectPayload
+const Miscellaneous = {} as ObjectPayload
 
-miscelleanous.get_country_list = {
+Miscellaneous.get_country_list = {
   title: "Get Country List",
   header: "",
   sidebar: "Get Country list",
@@ -24,8 +24,8 @@ miscelleanous.get_country_list = {
 
 export default [
   {
-    name: "Others",
+    name: "Miscellaneous",
     route: "operator",
-    routes: Object.values(miscelleanous)
+    routes: Object.values(Miscellaneous)
   },
 ];
