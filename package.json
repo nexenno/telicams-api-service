@@ -8,6 +8,7 @@
   "main": "server.ts",
   "scripts": {
     "build": "rm -rf dist && tsc && rm -rf build && mv dist build",
+    "buildProd": "npm i --omit=dev",
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

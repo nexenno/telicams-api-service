@@ -4,4 +4,3 @@ dist
 logs
 *.log
 .env
-/build

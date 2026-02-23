@@ -13,5 +13,5 @@
     "noImplicitAny": true // Prevents use of untyped variables
   },
   "include": ["src", "src/**/*.json", "package.json", "server.ts", "sauth.ts"],
-  "exclude": ["node_modules", "dist", "build", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
 }
