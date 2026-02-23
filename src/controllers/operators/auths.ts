@@ -242,7 +242,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
   /** Public Method: To get a password reset code */
   async forgotPassword() {
     //if the method is invalid
-    if (this.req.method !== "post") return helpers.outputError(this.res, 405)
+    if (this.method !== "post") return helpers.outputError(this.res, 405)
 
     let email = helpers.getInputValueString(this.body, "email")
 
