@@ -45,7 +45,8 @@ jobs:
             git pull
 
             # Install Node.js dependencies and build the project
-            npm run buildProd
+            npm install
+            npm run build
 
             pm2 reload $pm2Name || pm2 --name "$pm2Name" start build/server.js
           EOF
