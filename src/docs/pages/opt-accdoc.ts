@@ -204,7 +204,7 @@ optAccDoc.update_account = {
   header: "Header-> Authorization: Bearer token",
   sidebar: "Update Account",
   comment: "",
-  method: "POST",
+  method: "PUT",
   url: "http(s)://base-url/operators/accounts",
   doc_header: {
     field: "Field",
@@ -213,24 +213,6 @@ optAccDoc.update_account = {
     description: "Description"
   },
   docs: [
-    {
-      field: "asset_type_ids",
-      type: "Array",
-      status: "optional",
-      description: "Array of string. List of asset type IDs",
-    },
-    {
-      field: "phone_number",
-      type: "String",
-      status: "optional",
-      description: "",
-    },
-    {
-      field: "business_number",
-      type: "String",
-      status: "optional",
-      description: "",
-    },
     {
       field: "country",
       type: "String",
@@ -244,17 +226,24 @@ optAccDoc.update_account = {
       description: "",
     },
     {
-      field: "bizcat_id",
+      field: "address",
       type: "String",
       status: "optional",
       description: "",
     },
     {
-      field: "has_app",
+      field: "business_type",
       type: "String",
       status: "optional",
-      description: "0 for no, 1 for yes",
+      description: "1=individual | 2=company",
     },
+    {
+      field: "phone_number",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+
   ],
   response: `   {
       status: "ok",
@@ -267,7 +256,7 @@ optAccDoc.change_account_password = {
   header: "Header-> Authorization: Bearer {{token}}",
   sidebar: "Change Password",
   comment: "",
-  method: "POST",
+  method: "PUT",
   url: "http(s)://base-url/operators/accounts/change-password",
   doc_header: {
     field: "Field",

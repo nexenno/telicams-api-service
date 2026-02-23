@@ -12,7 +12,7 @@ export default class OperatorAccountController extends SimpleNodeJsController {
 
   async index() {
     return this.__run({
-      // put: OperatorAccountService.UpdateOperatorAccount,
+      put: OperatorAccountService.UpdateOperatorAccount,
       get: OperatorAccountService.GetOperatorAccount,
       delete: OperatorAccountService.DeleteOperatorUser,
     })

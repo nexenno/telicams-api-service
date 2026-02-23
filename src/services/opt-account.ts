@@ -64,178 +64,114 @@ export class OperatorAccountService {
   }
 
   // //updating user data
-  // static async UpdateOperatorAccount({ body, id, res, customData: userData }: PrivateMethodProps) {
-  //   let phoneNumber = helpers.getInputValueString(body, "phone_number");
-  //   let businessNumber = helpers.getInputValueString(body, "business_number");
-  //   let state = helpers.getInputValueString(body, "state");
-  //   let address = helpers.getInputValueString(body, "address");
-  //   let country = helpers.getInputValueString(body, "country");
-  //   let bizcatID = helpers.getInputValueString(body, "bizcat_id");
-  //   let hasApp = helpers.getInputValueString(body, "has_app");
-  //   let assetTypeIDs = helpers.getInputValueArray(body, "asset_type_ids");
-  //   let optID = helpers.getOperatorAuthID(userData)
+  static async UpdateOperatorAccount({ body, id, res, customData: userData }: PrivateMethodProps) {
+    let phoneNumber = helpers.getInputValueString(body, "phone_number")
+    let businessType = helpers.getInputValueString(body, "business_type")
+    let address = helpers.getInputValueString(body, "address")
+    let country = helpers.getInputValueString(body, "country")
+    let state = helpers.getInputValueString(body, "state")
 
-  //   let queryBuilder = {} as UserOperatorTypes
+    let queryBuilder = {} as UserOperatorTypes
 
+    //if the user is not the admin
+    if (userData.account_type !== "operator") {
+      return helpers.outputError(res, null, "Only the admin can perform this action")
+    }
 
-  //   if (bizcatID) {
-  //     if (helpers.isInvalidID(bizcatID)) {
-  //       return helpers.outputError(res, null, "Business category is invalid")
-  //     }
-  //   }
+    if (country) {
+      if (country.length > 50) return helpers.outputError(res, null, "Country should not be more than 50 characters")
+      //if country has special characters
+      if (helpers.hasInvalidSearchChar(country)) {
+        return helpers.outputError(res, null, "Country should not have special characters")
+      }
 
-  //   if (hasApp) {
-  //     if (!["0", "1"].includes(hasApp.toLowerCase())) {
-  //       return helpers.outputError(res, null, "has_app must be either '0' for no or '1' for yes")
-  //     }
-  //     queryBuilder.has_app = parseInt(hasApp)
-  //   }
+      queryBuilder.country = country
+    }
+    if (state) {
+      if (state.length > 50) return helpers.outputError(res, null, "State should not be more than 50 characters")
+      if (helpers.hasInvalidSearchChar(state)) {
+        return helpers.outputError(res, null, "State should not have special characters")
+      }
+      queryBuilder.state = state
+    }
 
-  //   if (phoneNumber) {
-  //     if (!helpers.isNumber({ input: phoneNumber, type: "int", length: 11 })) {
-  //       return helpers.outputError(res, null, "Phone number is invalid")
-  //     }
-  //     queryBuilder.phone_number = phoneNumber
-  //   }
+    if (phoneNumber) {
+      if (!helpers.isNumber({ input: phoneNumber, type: "int", length: 11 })) {
+        return helpers.outputError(res, null, "Phone number is invalid")
+      }
+      queryBuilder.phone_number = phoneNumber
+    }
 
-  //   if (businessNumber) {
-  //     //if the valus is not valid
-  //     if (!helpers.isAllowedCharacters(businessNumber)) {
-  //       return helpers.outputError(res, null, "Business number is invalid")
-  //     }
-  //     queryBuilder.business_number = businessNumber
-  //   }
+    if (businessType) {
+      //if the valus is not valid
+      if (!["1", "2"].includes(businessType)) return helpers.outputError(res, null, "Invalid business type")
+      queryBuilder.business_type = parseInt(businessType)
+    }
 
-  //   if (country) {
-  //     //if the value is invalid
-  //     if (helpers.hasInvalidSearchChar(country)) {
-  //       return helpers.outputError(res, null, "Country has invalid character")
-  //     }
-  //     //if the length is too long or short
-  //     if (country.length < 2 || country.length > 120) {
-  //       return helpers.outputError(res, null, country.length < 2 ? "Country is too short" : "Country is too long")
-  //     }
-  //     queryBuilder.country = country
-  //   }
+    if (country) {
+      //if the value is invalid
+      if (helpers.hasInvalidSearchChar(country)) {
+        return helpers.outputError(res, null, "Country has invalid character")
+      }
+      //if the length is too long or short
+      if (country.length < 2 || country.length > 120) {
+        return helpers.outputError(res, null, country.length < 2 ? "Country is too short" : "Country is too long")
+      }
+      queryBuilder.country = country
+    }
 
-  //   if (state) {
-  //     //if the value is invalid
-  //     if (helpers.hasInvalidSearchChar(state)) {
-  //       return helpers.outputError(res, null, "State has invalid character")
-  //     }
-  //     //if the length is too long or short
-  //     if (state.length < 2 || state.length > 120) {
-  //       return helpers.outputError(res, null, state.length < 2 ? "State is too short" : "State is too long")
-  //     }
-  //     queryBuilder.state = state
-  //   }
+    if (state) {
+      //if the value is invalid
+      if (helpers.hasInvalidSearchChar(state)) {
+        return helpers.outputError(res, null, "State has invalid character")
+      }
+      //if the length is too long or short
+      if (state.length < 2 || state.length > 120) {
+        return helpers.outputError(res, null, state.length < 2 ? "State is too short" : "State is too long")
+      }
+      queryBuilder.state = state
+    }
 
-  //   if (address) {
-  //     //if the value is invalid
-  //     if (helpers.hasInvalidSearchChar(address)) {
-  //       return helpers.outputError(res, null, "Address has invalid character")
-  //     }
-  //     //if the length is too long or short
-  //     if (address.length < 2 || address.length > 120) {
-  //       return helpers.outputError(res, null, address.length < 2 ? "Address is too short" : "Address is too long")
-  //     }
-  //     queryBuilder.address = address
-  //   }
+    if (address) {
+      //if the value is invalid
+      if (helpers.hasInvalidSearchChar(address)) {
+        return helpers.outputError(res, null, "Address has invalid character")
+      }
+      //if the length is too long or short
+      if (address.length < 2 || address.length > 120) {
+        return helpers.outputError(res, null, address.length < 2 ? "Address is too short" : "Address is too long")
+      }
+      queryBuilder.address = address
+    }
 
-  //   let getAccount: SendDBQuery = await UserOperatorModel.findById(optID, null, { lean: true }).catch(e => ({ error: e }))
+    if (Object.keys(queryBuilder).length === 0) {
+      return helpers.outputError(res, null, "Nothing to update")
+    }
 
-  //   //check for error
-  //   if (getAccount && getAccount.error) {
-  //     console.log("Error getting Account", getAccount.error)
-  //     return helpers.outputError(res, 500)
-  //   }
+    let saveUser: SendDBQuery = await UserOperatorModel.findByIdAndUpdate(userData.auth_id, { $set: queryBuilder },
+      { lean: true, new: true }).catch(e => ({ error: e }))
 
-  //   //if no category found
-  //   if (!getAccount) {
-  //     return helpers.outputError(res, null, "Account not found")
-  //   }
+    //check for error
+    if (saveUser && saveUser.error) {
+      console.log("Error updating operators by operator", saveUser.error)
+      return helpers.outputError(res, 500)
+    }
 
-  //   //if the account is approved
-  //   if (getAccount.account_status !== 1) {
-  //     if (bizcatID) {
-  //       return helpers.outputError(res, null, "Approved account cannot change business category")
-  //     }
-  //     if (businessNumber) {
-  //       return helpers.outputError(res, null, "Approved account cannot change business number")
-  //     }
-  //   }
+    //if the query does not execute
+    if (!saveUser) {
+      return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+    }
 
-  //   if (bizcatID) {
-  //     //Checking business category
-  //     let getCat: SendDBQuery = await AdminBusinessCatModel.findById(bizcatID, null, { lean: true }).catch(e => ({ error: e }))
-
-  //     //check for error
-  //     if (getCat && getCat.error) {
-  //       console.log("Error getting business category - update operatory by operator", getCat.error)
-  //       return helpers.outputError(res, 500)
-  //     }
-  //     //if no category found
-  //     if (!getCat) return helpers.outputError(res, null, "Business category not found")
-
-  //     queryBuilder.bizcat_id = new mongoose.Types.ObjectId(bizcatID)
-  //   }
-
-  //   //if there's asset type IDs
-  //   if (assetTypeIDs && assetTypeIDs.length > 0) {
-  //     //validate each of the IDs
-  //     for (let item of assetTypeIDs) {
-  //       if (helpers.isInvalidID(String(item))) {
-  //         return helpers.outputError(res, null, assetTypeIDs.length === 1 ? "Selected asset type is invalid" : "One of the asset type IDs is invalid")
-  //       }
-  //     }
-  //     //remove deplicate IDs
-  //     assetTypeIDs = Array.from(new Set(assetTypeIDs))
-
-  //     //validate the asset type
-  //     let listAsset: SendDBQuery = await AdminAssetListModel.find({ _id: { $in: assetTypeIDs.map((i: string) => new mongoose.Types.ObjectId(i)) } }).catch(e => ({ error: e }))
-
-  //     //check for error
-  //     if (listAsset && listAsset.error) {
-  //       console.log("Error getting asset type list - update operatory by operator", listAsset.error)
-  //       return helpers.outputError(res, 500)
-  //     }
-
-  //     //if the length do not match
-  //     if (!listAsset || listAsset.length !== assetTypeIDs.length) {
-  //       return helpers.outputError(res, null, assetTypeIDs.length === 1 ? "Selected asset type not found" : "One or more selected asset types not found")
-  //     }
-
-  //     queryBuilder.asset_type_ids = assetTypeIDs.map(i => new mongoose.Types.ObjectId(String(i)))
-  //   }
-
-  //   if (Object.keys(queryBuilder).length === 0) {
-  //     return helpers.outputError(res, null, "Nothing to update")
-  //   }
-
-  //   let saveUser: SendDBQuery = await UserOperatorModel.findByIdAndUpdate(optID, { $set: queryBuilder },
-  //     { lean: true, new: true }).catch(e => ({ error: e }))
-
-  //   //check for error
-  //   if (saveUser && saveUser.error) {
-  //     console.log("Error updating operators by operator", saveUser.error)
-  //     return helpers.outputError(res, 500)
-  //   }
-
-  //   //if the query does not execute
-  //   if (!saveUser) {
-  //     return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-  //   }
-
-  //   helpers.logOperatorActivity({
-  //     auth_id: userData.auth_id, operator_id: optID as string,
-  //     operation: "account-update", body: `Updated account details`,
-  //     data: { id: optID, email: saveUser.email },
-  //   }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: userData.auth_id as string,
+      operation: "account-update", body: `Updated account information`,
+      data: { id: userData.auth_id, email: saveUser.email },
+    }).catch(e => { })
 
 
-  //   //output the response
-  //   return helpers.outputSuccess(res, {})
-  // }
+    //output the response
+    return helpers.outputSuccess(res, {})
+  }
 
   static async DeleteOperatorUser({ body, id, res, req, customData: userData }: PrivateMethodProps) {
     // 1. get operator account
