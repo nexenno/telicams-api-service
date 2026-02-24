@@ -58,7 +58,7 @@ optAccDoc.update_team_status = {
   header: "Header-> Authorization: Bearer {{token}}",
   sidebar: "Update Team Status",
   comment: "",
-  method: "POST",
+  method: "PATCH",
   url: "http(s)://base-url/operators/accounts/team-lists/{{team_id}}",
   doc_header: {
     field: "Field",

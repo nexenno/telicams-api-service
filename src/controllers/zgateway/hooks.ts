@@ -11,7 +11,7 @@ export default class OperatorAccountController extends SimpleNodeJsController {
     if (!authHeader) return helpers.outputError(this.res, null, "Authorization header missing");
     //check if the header is in the correct format
     authHeader = authHeader.replace("Bearer ", "")
-    if (authHeader !== fileConfig.config.gatewaySecret) return helpers.outputError(this.res, null, "Unknown gateway call")
+    if (authHeader !== fileConfig.config.gatewaySecretIn) return helpers.outputError(this.res, null, "Unknown gateway call")
   }
 
 

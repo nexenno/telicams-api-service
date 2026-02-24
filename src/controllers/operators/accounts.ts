@@ -17,6 +17,7 @@ export default class OperatorAccountController extends SimpleNodeJsController {
       delete: OperatorAccountService.DeleteOperatorUser,
     })
   }
+
   async changePassword() {
     if (this.method !== "put") return helpers.outputError(this.res, 405)
     return OperatorAccountService.ChangeAdminPassword({
@@ -36,7 +37,6 @@ export default class OperatorAccountController extends SimpleNodeJsController {
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
     })
   }
-
 
   async activityLogs(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)

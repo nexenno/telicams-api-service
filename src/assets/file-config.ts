@@ -28,7 +28,8 @@ export const fileConfig = {
     env: 'local',
     dbUrl: '',
     jwtSecret: '2a4b16a1c3b7d8e9f8c3e1bc0d7e5e4c2f7f9a3d9d6af4b09d4f2ac2c84e9fb7',
-    gatewaySecret: "e9f8c3e18f7f9a3d9d6af4b0a2a4b16e94f7dac23b7d8f4b099d4f2ac2cd6d4f2b7ac2c87e59d4f2cd69e4c2f7f9a3d",
+    gatewaySecretIn: "cb1a0845eac3a42cd27d1e076c482bce87197c45000d2fcb8916f0ea7fda839fe5b6a7d0dd458faa5a2e5e9e694b6ac411163894276b0180f66d1b00",
+    gatewaySecretOut: "df1dbec8ea318d6741104916b0ac0c0077d76c6231ed4fa0e1d2151da5260ce67ad96578dfebddbe9ab048fcc59e4003302f085454284f46d7d56077",
     superAdminAccount: {
       user: "superadmin@koova.ng",
       pass: "yu&5gK8789nhjk"

@@ -449,7 +449,7 @@ export class GatewayHookService {
     let logData: SendDBQuery = await DashcamLocationModel.create({
       device_id: deviceData.device_id, operator_id: deviceData.operator_id,
       latitude, longitude, speed, heading, gps_timestamp: gpsTime,
-      acc_status: accOn ? 1 : 0,
+      acc_status: accOn ? 1 : 0, alarm_flag: body.alarmFlag, mileage: body.mileage,
     }).catch((e) => ({ error: e }));
 
     //if there's an error, return it

@@ -75,7 +75,6 @@ const OptVehicles = new Schema({
   },
   suspend_date: {
     type: String,
-    index: true,
     default: "",
   },
 }, {

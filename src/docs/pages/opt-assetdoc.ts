@@ -237,13 +237,13 @@ optAssets.add_new_device = {
     {
       field: "device_model",
       type: "String",
-      status: "required",
+      status: "optional",
       description: "",
     },
     {
       field: "device_oem",
       type: "String",
-      status: "required",
+      status: "optional",
       description: "",
     },
   ],

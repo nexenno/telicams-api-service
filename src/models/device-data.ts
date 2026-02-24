@@ -130,6 +130,15 @@ const DashcamLocations = new mongoose.Schema({
     enum: [0, 1], //0 - off, 1 - on
     default: 0,
   },
+  alarm_flag: {
+    type: Number,
+    enum: [0, 1], //0 - no alarm, 1 - alarm
+    default: 0,
+  },
+  mileage: {
+    type: Number,
+    default: 0,
+  }
 }, {
   id: true,
   timestamps: true,

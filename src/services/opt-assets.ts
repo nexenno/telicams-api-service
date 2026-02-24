@@ -250,14 +250,10 @@ export class OperatorAssetService {
     let optID = helpers.getOperatorAuthID(userData)
     let qBuilder = {} as DashcamDeviceTypes
 
-    if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-    if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
-    if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
-
     if (!id) {
       if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-      if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
-      if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
+      // if (!deviceModel) return helpers.outputError(res, null, "Device model is required")
+      // if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
       qBuilder.created_by = "operator"
       qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
     }
@@ -1260,6 +1256,118 @@ export class OperatorAssetService {
     }
 
     if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Selected alarms have been deleted successfully" });
+  }
+
+  //========**************LOCATION SECTION***********=========================/
+  static async GetLocationData({ query, res, customData: userData }: PrivateMethodProps) {
+    let startTime = helpers.getInputValueString(query, "start_time")
+    let endTime = helpers.getInputValueString(query, "end_time")
+    let recordDate = helpers.getInputValueString(query, "record_date")
+    let timezone = helpers.getInputValueString(query, "timezone")
+    let vehicleID = helpers.getInputValueString(query, "vehicle_id")
+    let page = helpers.getInputValueString(query, "page")
+    let itemPerPage = helpers.getInputValueString(query, "item_per_page")
+    let component = helpers.getInputValueString(query, "component")
+    let optID = helpers.getOperatorAuthID(userData)
+
+    let qBuilder = { operator_id: new mongoose.Types.ObjectId(optID) } as DashcamAlarmTypes
+
+    if (!recordDate || !startTime || !endTime) {
+      return helpers.outputError(res, null, "Kindly select the date and time range for the location data you want to retrieve")
+    }
+
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+    qBuilder.vehicle_id = new mongoose.Types.ObjectId(vehicleID)
+
+    //chek end date if submitted
+    //if start date is not submitted
+    if (helpers.isDateFormat(recordDate)) {
+      return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
+    }
+
+    //validate start and end time
+    if (!helpers.isTimeFormat(startTime)) {
+      return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
+    }
+
+    if (!helpers.isTimeFormat(endTime)) {
+      return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
+    }
+
+    //if there's no timezone, return
+    if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
+
+    //valida the timezone
+    if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+
+    let getUTCStart = helpers.convertDateTimeZone({
+      dateString: `${recordDate}T${startTime}:00`,
+      fromTimeZone: timezone, toTimeZone: "utc"
+    })
+    let getUTCEnd = helpers.convertDateTimeZone({
+      dateString: `${recordDate}T${endTime}:59`,
+      fromTimeZone: timezone, toTimeZone: "utc"
+    })
+
+    // @ts-expect-error
+    qBuilder.createdAt = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
+
+    let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
+    if (!pageItem.status) return helpers.outputError(res, null, pageItem.msg)
+
+    let pipLine: PipelineQuery = [
+      { $match: qBuilder },
+      { $addFields: { location_id: "$_id" } },
+      { $sort: { _id: -1 as -1 } },
+      { $skip: pageItem.data.page },
+      { $limit: pageItem.data.item_per_page },
+      { $unset: ["__v", "_id"] },
+    ]
+
+    if (component) {
+      switch (component) {
+        case "count":
+          pipLine = [
+            { $match: qBuilder },
+            { $count: "total" },
+            { $unset: "_id" }
+          ]
+          break;
+        case "count-status":
+          pipLine = [
+            { $match: qBuilder },
+            {
+              $group: {
+                _id: null,
+                total_count: { $sum: 1 },
+                total_resolved: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
+                total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 0] }, 1, 0] } },
+              }
+            },
+            { $unset: ["_id"] }
+          ]
+          break;
+        case "export":
+          return helpers.outputError(res, null, "Not Ready Yet!")
+        default:
+          return helpers.outputError(res, null, "invalid component")
+      }
+
+    }
+
+    let getData: SendDBQuery = await DashcamAlarmModel.aggregate(pipLine).catch(e => ({ error: e }))
+
+    //check error
+    if (getData && getData.error) {
+      console.log("Error getting operator alarm list", getData.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (component) {
+      getData = getData.length ? getData[0] : {}
+    }
+    return helpers.outputSuccess(res, getData);
   }
 
 
