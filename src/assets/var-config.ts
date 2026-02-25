@@ -35,11 +35,24 @@ export const DatabaseTableList = {
 }
 
 const serviceURL = {
-  message_service: fileConfig.config.env === "live" ? "http://localhost:4007" : "http://localhost:6007",
-  service_staging: "https://stagingapp.zeno.ng"
+  gateway_service: fileConfig.config.env === "live" ? "http://localhost:4005" : "http://localhost:8080/api/v1",
 };
 
 export const serviceEndpoint = {
-  message_service_send_mail: `${serviceURL.message_service}/user/messages/email-message`,
-  service_staging: serviceURL.service_staging
+  device_endpoint: `${serviceURL.gateway_service}/device`,
+  stream_endpoint: `${serviceURL.gateway_service}/stream`,
 };
+
+
+
+//SIGNAL STRENGTH VALUES
+// 0 = No signal
+// 1–10 = Weak
+// 11–20 = Fair
+// 21–31 = Strong
+
+// Satellites Accuracy
+// 0–3 = Poor
+// 4–6 = Acceptable
+// 7–12 = Good
+// 12+ = Excellent

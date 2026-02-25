@@ -1098,7 +1098,7 @@ export class OperatorAssetService {
                 total_count: { $sum: 1 },
                 total_critical: { $sum: { $cond: [{ $eq: ["$severity", "CRITICAL"] }, 1, 0] } },
                 total_resolved: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
-                total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 0] }, 1, 0] } },
+                total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 1] }, 1, 0] } },
               }
             },
             { $unset: ["_id"] }
