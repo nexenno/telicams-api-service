@@ -119,7 +119,7 @@ export class OperatorAssetService {
     if (!getOpt) return helpers.outputError(res, null, "Vehicle not found")
 
     //if the vehicle is not active, cannot assign device
-    if (getOpt && getOpt.status !== 1) return helpers.outputError(res, null, "Vehicle is not active")
+    if (getOpt && getOpt.vehicle_status !== 1) return helpers.outputError(res, null, "Vehicle is not active")
 
     //if the vehicle is already assigned with a device, return error
     if (getOpt.device_assigned || getOpt.device_id) {
@@ -611,7 +611,9 @@ export class OperatorAssetService {
     let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
     let endDate = helpers.getInputValueString(query, "end_date")
-    let online = helpers.getInputValueString(query, "online")
+    let onlineStatus = helpers.getInputValueString(query, "online_status")
+    let accStatus = helpers.getInputValueString(query, "acc_status")
+    let vehicleStatus = helpers.getInputValueString(query, "vehicle_status")
     let timezone = helpers.getInputValueString(query, "timezone")
     let collectionID = helpers.getInputValueString(query, "collection_id")
     let page = helpers.getInputValueString(query, "page")
@@ -671,21 +673,30 @@ export class OperatorAssetService {
       qBuilder.createdAt = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
     }
 
-    if (status) {
-      if (!["0", "1", "2"].includes(status)) {
-        return helpers.outputError(res, null, "Invalid status.")
+    if (vehicleStatus) {
+      if (!["0", "1", "2"].includes(vehicleStatus)) {
+        return helpers.outputError(res, null, "Invalid vehicle status.")
       }
-      qBuilder.status = parseInt(status)
+      qBuilder.vehicle_status = parseInt(vehicleStatus)
     }
 
     //when online status is provided
-    if (online) {
-      if (!["0", "1"].includes(online)) {
+    if (onlineStatus) {
+      if (!["0", "1"].includes(onlineStatus)) {
         return helpers.outputError(res, null, "Invalid online status.")
       }
+      qBuilder.online_status = parseInt(onlineStatus)
     }
 
-    //when online status is provided
+    //when ACC status is provided
+    if (accStatus) {
+      if (!["0", "1"].includes(accStatus)) {
+        return helpers.outputError(res, null, "Invalid ACC status.")
+      }
+      qBuilder.acc_status = parseInt(accStatus)
+    }
+
+    //when device assigned status is provided
     if (deviceAssigned) {
       if (!["0", "1"].includes(deviceAssigned)) {
         return helpers.outputError(res, null, "Invalid device assigned status.")
@@ -707,33 +718,9 @@ export class OperatorAssetService {
     let pipLine: PipelineQuery = [
       { $match: qBuilder },
       { $addFields: { vehicle_id: "$_id" } },
-      ...(online ? [{
-        $lookup: {
-          from: DatabaseTableList.dashcam_devices,
-          let: { deviceID: "$device_id" },
-          pipeline: [{
-            $match: { $expr: { $eq: ["$_id", "$$deviceID"] }, online: online === "1" },
-          }],
-          as: "device_data"
-        }
-      },
-      { $unwind: "$device_data" },
-      ] : []),
       { $sort: { _id: -1 as -1 } },
       { $skip: pageItem.data.page },
       { $limit: pageItem.data.item_per_page },
-      ...(!online ? [{
-        $lookup: {
-          from: DatabaseTableList.dashcam_devices,
-          let: { deviceID: "$device_id" },
-          pipeline: [{
-            $match: { $expr: { $eq: ["$_id", "$$deviceID"] } },
-          }],
-          as: "device_data"
-        }
-      },
-      { $unwind: { path: "$device_data", preserveNullAndEmptyArrays: true } },
-      ] : []),
       {
         $lookup: {
           from: DatabaseTableList.collection_lists,
@@ -746,7 +733,7 @@ export class OperatorAssetService {
       },
       { $unwind: { path: "$collection_data", preserveNullAndEmptyArrays: true } },
       { $addFields: { collection_name: "$collection_data.name" } },
-      { $unset: ["__v", "_id", "device_data._id", "device_data.__v", "collection_data", "device_data.operator_id", "device_data.created_by"] },
+      { $unset: ["__v", "_id", "collection_data",] },
     ]
 
     //if there's ID
@@ -906,10 +893,10 @@ export class OperatorAssetService {
     if (status === '2') {
       //if there's no suspend reason
       if (!reason) return helpers.outputError(res, null, "Suspend reason is required when suspending a vehicle")
-      qBuilder.status = parseInt(status)
+      qBuilder.vehicle_status = parseInt(status)
       qBuilder.suspend_date = new Date().toISOString()
     } else {
-      qBuilder.status = parseInt(status)
+      qBuilder.vehicle_status = parseInt(status)
     }
 
     if (reason) {
@@ -1366,14 +1353,20 @@ export class OperatorAssetService {
                 let: { vehID: new mongoose.Types.ObjectId(vehicleID), optID: new mongoose.Types.ObjectId(optID) },
                 pipeline: [
                   { $match: { $expr: { $and: [{ $eq: ["$_id", "$$vehID"] }, { $eq: ["$operator_id", "$$optID"] }] } } },
-                  { $project: { plate_number: 1, vehspeed_limit: 1 } }
+                  { $project: { plate_number: 1, vehspeed_limit: 1, online: 1 } }
                 ],
                 as: "vehicle_data"
 
               }
             },
             { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
-            { $addFields: { speed_limit: "$vehicle_data.vehspeed_limit" } },
+            {
+              $addFields: {
+                speed_limit: "$vehicle_data.vehspeed_limit",
+                plate_number: "$vehicle_data.plate_number",
+                online: "$vehicle_data.online"
+              }
+            },
             { $unset: ["_id", "vehicle_data"] }
           ]
           break;

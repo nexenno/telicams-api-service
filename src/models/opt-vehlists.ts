@@ -56,6 +56,14 @@ const OptVehicles = new Schema({
     type: String,
     default: "",
   },
+  online_status: {
+    type: Number,
+    default: 0, //0-off, 1-on
+  },
+  acc_status: {
+    type: Number,
+    default: 0, //0-off, 1-on
+  },
   vehicle_model: {
     type: String,
     default: "",
@@ -68,10 +76,10 @@ const OptVehicles = new Schema({
     type: Number,
     default: 0,
   },
-  status: {
+  vehicle_status: {
     type: Number,
-    enum: [0, 1, 2, 3], //0-pending, 1-active, 2-suspended,
-    default: 0,//0 pending 1-active, 2-suspended by operator, 3-suspended by admin
+    enum: [0, 1, 2], //0-pending, 1-active, 2-suspended,
+    default: 0,
   },
   suspend_reason: {
     type: String,

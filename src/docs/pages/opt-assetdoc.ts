@@ -155,13 +155,19 @@ optAssetDoc.get_vehicle = {
       description: "0=Not Assigned | 1=Assigned",
     },
     {
-      field: "status",
+      field: "vehicle_status",
       type: "String",
       status: "optional",
-      description: "0=Pending | 1=Active | 2=Suspended by operator | 3=Suspended by admin",
+      description: "0=Pending | 1=Active | 2=Suspended",
     },
     {
-      field: "online",
+      field: "acc_status",
+      type: "String",
+      status: "optional",
+      description: "0=Pending | 1=Active",
+    },
+    {
+      field: "online_status",
       type: "String",
       status: "optional",
       description: "0=Not online | 1=Online",
