@@ -243,7 +243,12 @@ optAccDoc.update_account = {
       status: "optional",
       description: "",
     },
-
+    {
+      field: "vehspeed_limit",
+      type: "String",
+      status: "optional",
+      description: "Vehicle speed limit should be a number between 10 and 250",
+    },
   ],
   response: `   {
       status: "ok",

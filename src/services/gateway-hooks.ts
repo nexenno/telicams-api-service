@@ -265,7 +265,7 @@ export class GatewayHookService {
       alarm_type: alarmType, severity: severity, status: 0,
       vehicle_id: deviceData.vehicle_id || undefined,
       latitude: latitude, longitude: longitude, speed: speed,
-      triggered_at: new Date(), alarm_ref: eventId, trigger_detail: body.detail,
+      triggered_at: body.triggeredAt + "Z", alarm_ref: eventId, trigger_detail: body.detail,
       operator_id: deviceData.operator_id, device_id: deviceData.device_id
     }).catch((e) => ({ error: e }));
 
@@ -329,7 +329,7 @@ export class GatewayHookService {
     let updateData: SendDBQuery = await DashcamAlarmModel.findOneAndUpdate({
       device_id: deviceData.device_id, alarm_ref: eventId
     }, {
-      $set: { status: 1, cleared_at: new Date() }
+      $set: { status: 1, cleared_at: body.clearedAt + "Z" }
     }, { new: true }).catch((e) => ({ error: e }));
 
     //if there's an error, return it

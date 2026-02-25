@@ -4,7 +4,7 @@ import { mongoose } from "../models/dbConnector";
 import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 import { DatabaseTableList } from "../assets/var-config";
-import { DashcamAlarmModel, DashcamAlarmTypes } from "../models/device-data";
+import { DashcamAlarmModel, DashcamAlarmTypes, DashcamLocationModel, LocationSummaryModel } from "../models/device-data";
 import { UserOperatorModel } from "../models/user-operators";
 
 export class OperatorAssetService {
@@ -327,6 +327,7 @@ export class OperatorAssetService {
     let vehModel = helpers.getInputValueString(body, "vehicle_model");
     let vehVin = helpers.getInputValueString(body, "vehicle_vin");
     let yearPurchase = helpers.getInputValueString(body, "year_purchase");
+    let speedLimit = helpers.getInputValueString(body, "vehspeed_limit");
     let collectionID = helpers.getInputValueString(body, "collection_id")
     let optID = helpers.getOperatorAuthID(userData)
 
@@ -348,6 +349,15 @@ export class OperatorAssetService {
       //if no data found or the account is not active
       if (!getData || getData.account_status !== 1) return helpers.outputError(res, null, "Only approved account can add vehicles");
       qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
+    }
+
+    if (speedLimit) {
+      //check if it's number
+      if (!helpers.isNumber({ input: speedLimit, type: "int", length: 3, min: 10, max: 250 })) {
+        return helpers.outputError(res, null, "Vehicle speed limit should be a number between 10 and 250")
+      }
+      qBuilder.vehspeed_limit = parseInt(speedLimit)
+      logMsg += logMsg.length > 7 ? `, speed limit to ${speedLimit}` : ` speed limit to ${speedLimit}`
     }
 
     //year you bought the vehicle
@@ -1259,26 +1269,24 @@ export class OperatorAssetService {
   }
 
   //========**************LOCATION SECTION***********=========================/
-  static async GetLocationData({ query, res, customData: userData }: PrivateMethodProps) {
+  static async GetLocationData({ query, res, id: vehicleID, customData: userData }: PrivateMethodProps) {
     let startTime = helpers.getInputValueString(query, "start_time")
     let endTime = helpers.getInputValueString(query, "end_time")
     let recordDate = helpers.getInputValueString(query, "record_date")
     let timezone = helpers.getInputValueString(query, "timezone")
-    let vehicleID = helpers.getInputValueString(query, "vehicle_id")
     let page = helpers.getInputValueString(query, "page")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let component = helpers.getInputValueString(query, "component")
     let optID = helpers.getOperatorAuthID(userData)
 
-    let qBuilder = { operator_id: new mongoose.Types.ObjectId(optID) } as DashcamAlarmTypes
+    let qBuilder = {
+      operator_id: new mongoose.Types.ObjectId(optID),
+      vehicle_id: new mongoose.Types.ObjectId(vehicleID)
+    } as DashcamAlarmTypes
 
     if (!recordDate || !startTime || !endTime) {
       return helpers.outputError(res, null, "Kindly select the date and time range for the location data you want to retrieve")
     }
-
-    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
-    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
-    qBuilder.vehicle_id = new mongoose.Types.ObjectId(vehicleID)
 
     //chek end date if submitted
     //if start date is not submitted
@@ -1311,7 +1319,7 @@ export class OperatorAssetService {
     })
 
     // @ts-expect-error
-    qBuilder.createdAt = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
+    qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
 
     let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
     if (!pageItem.status) return helpers.outputError(res, null, pageItem.msg)
@@ -1340,12 +1348,33 @@ export class OperatorAssetService {
             {
               $group: {
                 _id: null,
-                total_count: { $sum: 1 },
-                total_resolved: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
-                total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 0] }, 1, 0] } },
+                average_speed: { $avg: "$average_speed" },
+                max_speed: { $max: "$max_speed" },
+                distance_covered: { $sum: "$distance" },
+                parking_duration: { $sum: "$parking_time" },
+                driving_time: { $sum: "$driving_time" },
+                stationary_time: { $sum: "$stationary_time" },
+                speed_violations: { $sum: "$speed_violations" },
+                alarm_total: { $sum: "$alarms" },
+                alarm_mild: { $sum: "$mild_alarms" },
+                alarm_critical: { $sum: "$critical_alarms" },
               }
             },
-            { $unset: ["_id"] }
+            {
+              $lookup: {
+                from: DatabaseTableList.vehicle_lists,
+                let: { vehID: new mongoose.Types.ObjectId(vehicleID), optID: new mongoose.Types.ObjectId(optID) },
+                pipeline: [
+                  { $match: { $expr: { $and: [{ $eq: ["$_id", "$$vehID"] }, { $eq: ["$operator_id", "$$optID"] }] } } },
+                  { $project: { plate_number: 1, vehspeed_limit: 1 } }
+                ],
+                as: "vehicle_data"
+
+              }
+            },
+            { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
+            { $addFields: { speed_limit: "$vehicle_data.vehspeed_limit" } },
+            { $unset: ["_id", "vehicle_data"] }
           ]
           break;
         case "export":
@@ -1356,17 +1385,19 @@ export class OperatorAssetService {
 
     }
 
-    let getData: SendDBQuery = await DashcamAlarmModel.aggregate(pipLine).catch(e => ({ error: e }))
+    let getData: SendDBQuery = component === "count-status" ? await LocationSummaryModel.aggregate(pipLine).catch(e => ({ error: e })) :
+      await DashcamLocationModel.aggregate(pipLine).catch(e => ({ error: e }))
 
     //check error
     if (getData && getData.error) {
-      console.log("Error getting operator alarm list", getData.error)
+      console.log("Error getting operator location list", getData.error)
       return helpers.outputError(res, 500)
     }
 
     if (component) {
       getData = getData.length ? getData[0] : {}
     }
+
     return helpers.outputSuccess(res, getData);
   }
 

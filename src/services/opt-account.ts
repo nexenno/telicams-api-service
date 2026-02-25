@@ -24,7 +24,12 @@ export class OperatorAccountService {
             let: { operatorID: new mongoose.Types.ObjectId(optID) },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$operatorID"] } } },
-              { $project: { business_name: 1, business_logo: 1, business_type: 1, } }
+              {
+                $project: {
+                  business_name: 1, business_logo: 1,
+                  business_type: 1, fleet_size: 1, vehspeed_limit: 1
+                }
+              }
             ],
             as: "operator_data"
           }
@@ -37,6 +42,7 @@ export class OperatorAccountService {
             business_logo: "$operator_data.business_logo",
             business_type: "$operator_data.business_type",
             fleet_size: "$operator_data.fleet_size",
+            vehspeed_limit: "$operator_data.vehspeed_limit",
           }
         },
         { $unset: "operator_data" }
@@ -70,6 +76,7 @@ export class OperatorAccountService {
     let address = helpers.getInputValueString(body, "address")
     let country = helpers.getInputValueString(body, "country")
     let state = helpers.getInputValueString(body, "state")
+    let speedLimit = helpers.getInputValueString(body, "vehspeed_limit")
 
     let queryBuilder = {} as UserOperatorTypes
 
@@ -78,13 +85,20 @@ export class OperatorAccountService {
       return helpers.outputError(res, null, "Only the admin can perform this action")
     }
 
+    if (speedLimit) {
+      //check if it's number
+      if (!helpers.isNumber({ input: speedLimit, type: "int", length: 3, min: 10, max: 250 })) {
+        return helpers.outputError(res, null, "Vehicle speed limit should be a number between 10 and 250")
+      }
+      queryBuilder.vehspeed_limit = parseInt(speedLimit)
+    }
+
     if (country) {
       if (country.length > 50) return helpers.outputError(res, null, "Country should not be more than 50 characters")
       //if country has special characters
       if (helpers.hasInvalidSearchChar(country)) {
         return helpers.outputError(res, null, "Country should not have special characters")
       }
-
       queryBuilder.country = country
     }
     if (state) {

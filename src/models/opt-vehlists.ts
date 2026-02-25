@@ -64,6 +64,10 @@ const OptVehicles = new Schema({
     type: String,
     default: "",
   },
+  vehspeed_limit: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: Number,
     enum: [0, 1, 2, 3], //0-pending, 1-active, 2-suspended,

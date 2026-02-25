@@ -30,6 +30,10 @@ const Operators = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  vehspeed_limit: {
+    type: Number,
+    default: 0,
+  },
   phone_number: {
     type: String,
     maxlength: 16,
@@ -45,11 +49,6 @@ const Operators = new mongoose.Schema({
   business_logo: {
     type: String
   },
-
-  // bizcat_id: {
-  //   type: Schema.Types.ObjectId,
-  //   ref: DatabaseTableList.admin_business_categories,
-  // },
   account_type: {
     type: String,
     enum: ["operator", "team"],

@@ -24,6 +24,10 @@ const DashcamAlarms = new mongoose.Schema({
     required: true,
     maxlength: 100,
   },
+  triggered_at: {
+    type: Date,
+    required: true,
+  },
   alarm_type: {
     type: String,
     maxlength: 50,
@@ -39,10 +43,6 @@ const DashcamAlarms = new mongoose.Schema({
   },
   speed: {
     type: Number,
-  },
-  triggered_at: {
-    type: Date,
-    required: true,
   },
   cleared_at: {
     type: Date,
@@ -115,20 +115,25 @@ const DashcamLocations = new mongoose.Schema({
     index: { sparse: true },
     ref: DatabaseTableList.vehicle_lists,
   },
+  gps_timestamp: {
+    type: Date,
+    index: true,
+    required: true,
+  },
   latitude: {
     type: Number,
+    required: true,
   },
   longitude: {
     type: Number,
+    required: true,
   },
   speed: {
     type: Number,
+    default: 0,
   },
   heading: {
     type: Number,
-  },
-  gps_timestamp: {
-    type: Date,
   },
   acc_status: {
     type: Number,
@@ -167,18 +172,56 @@ const LocationSummary = new mongoose.Schema({
     index: { sparse: true },
     ref: DatabaseTableList.vehicle_lists,
   },
-  start_time: Date,
-  end_time: Date,
-  distance: Number,
-  max_speed: Number,
-  average_speed: Number,
-  driving_time: Number,
-  stationary_time: Number,
-  parking_time: Number,
-  speed_violations: Number,
-  alarms: Number,
-  mild_alarms: Number,
-  critical_alarms: Number,
+  start_time: {
+    type: Date,
+    index: true,
+    required: true,
+  },
+  end_time: {
+    type: Date,
+    index: true,
+    required: true,
+  },
+  distance: {
+    type: Number,
+    default: 0,
+  },
+  max_speed: {
+    type: Number,
+    default: 0,
+  },
+  average_speed: {
+    type: Number,
+    default: 0,
+  },
+  driving_time: {
+    type: Number,
+    default: 0,
+  },
+  stationary_time: {
+    type: Number,
+    default: 0,
+  },
+  parking_time: {
+    type: Number,
+    default: 0,
+  },
+  speed_violations: {
+    type: Number,
+    default: 0,
+  },
+  alarms: {
+    type: Number,
+    default: 0,
+  },
+  mild_alarms: {
+    type: Number,
+    default: 0,
+  },
+  critical_alarms: {
+    type: Number,
+    default: 0,
+  },
 }, {
   id: true,
   timestamps: true,

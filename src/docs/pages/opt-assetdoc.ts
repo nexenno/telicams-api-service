@@ -1,8 +1,8 @@
 import { ObjectPayload } from "../../typings/general"
 
-const optAssets = {} as ObjectPayload
+const optAssetDoc = {} as ObjectPayload
 
-optAssets.add_new_vehicle = {
+optAssetDoc.add_new_vehicle = {
   title: "Add New Vehicle",
   header: "Header-> Authorization: Bearer {{token}}",
   sidebar: "Add New Vehicle",
@@ -52,6 +52,12 @@ optAssets.add_new_vehicle = {
       status: "optional",
       description: "",
     },
+    {
+      field: "vehspeed_limit",
+      type: "String",
+      status: "optional",
+      description: "Vehicle speed limit should be a number between 10 and 250",
+    },
   ],
   response: `   {
       status: "ok",
@@ -59,7 +65,7 @@ optAssets.add_new_vehicle = {
    }`
 }
 
-optAssets.update_vehicle_status = {
+optAssetDoc.update_vehicle_status = {
   title: "Update Vehicle Status",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Update Veh Status",
@@ -98,7 +104,7 @@ optAssets.update_vehicle_status = {
    }`
 }
 
-optAssets.get_vehicle = {
+optAssetDoc.get_vehicle = {
   title: "Get Vehicle ",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Get Vehicle ",
@@ -186,7 +192,7 @@ optAssets.get_vehicle = {
    }`
 }
 
-optAssets.delete_vehicle = {
+optAssetDoc.delete_vehicle = {
   title: "Delete Vehicle",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Delete Vehicle",
@@ -214,7 +220,7 @@ optAssets.delete_vehicle = {
 }
 
 
-optAssets.add_new_device = {
+optAssetDoc.add_new_device = {
   title: "Add New Device",
   header: "Header-> Authorization: Bearer {{token}}",
   sidebar: "Add New Device",
@@ -253,7 +259,7 @@ optAssets.add_new_device = {
    }`
 }
 
-optAssets.assign_device_to_vehicle = {
+optAssetDoc.assign_device_to_vehicle = {
   title: "Assign Device to Vehicle or Unassign Device from Vehicle",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Assign/Unassign Device",
@@ -280,7 +286,7 @@ optAssets.assign_device_to_vehicle = {
    }`
 }
 
-optAssets.get_device_list = {
+optAssetDoc.get_device_list = {
   title: "Get Device List",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Get Device List",
@@ -344,7 +350,7 @@ optAssets.get_device_list = {
    }`
 }
 
-optAssets.delete_device = {
+optAssetDoc.delete_device = {
   title: "Delete Device",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Delete Device",
@@ -367,8 +373,7 @@ optAssets.delete_device = {
 }
 
 
-
-optAssets.update_alarm_status = {
+optAssetDoc.update_alarm_status = {
   title: "Update Alarm",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Update Alarm",
@@ -401,7 +406,7 @@ optAssets.update_alarm_status = {
    }`
 }
 
-optAssets.get_alarm = {
+optAssetDoc.get_alarm = {
   title: "Get Alarm Data",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Get Alarm",
@@ -477,7 +482,7 @@ optAssets.get_alarm = {
    }`
 }
 
-optAssets.delete_alarm = {
+optAssetDoc.delete_alarm = {
   title: "Delete Alarm",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Delete Alarm",
@@ -504,74 +509,13 @@ optAssets.delete_alarm = {
    }`
 }
 
-
-optAssets.add_new_collection = {
-  title: "Add New Collection",
-  header: "Header-> Authorization: Bearer {{token}}",
-  sidebar: "Add New Collection",
-  comment: "For Update, use PUT with the collection_id in the URL.",
-  method: "POST|PUT",
-  url: "http(s)://base-url/operators/assets/collection-lists",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [
-    {
-      field: "name",
-      type: "String",
-      status: "required",
-      description: "",
-    },
-    {
-      field: "description",
-      type: "String",
-      status: "optional",
-      description: "",
-    },
-  ],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-optAssets.update_collection_status = {
-  title: "Update Collection Status",
+optAssetDoc.get_vehlocation = {
+  title: "Get Vehicle Location",
   header: "Header-> Authorization: Bearer token,",
-  sidebar: "Update Col. Status",
-  comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [
-    {
-      field: "status",
-      type: "String",
-      status: "optional",
-      description: "1=Active | 2=Archived",
-    },
-  ],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-optAssets.get_collection_list = {
-  title: "Get Collection List",
-  header: "Header-> Authorization: Bearer token,",
-  sidebar: "Get Collection",
+  sidebar: "Get Alarm",
   comment: "",
   method: "GET",
-  url: "http(s)://base-url/operators/assets/collection-lists/{collection_id}",
+  url: "http(s)://base-url/operators/assets/location-lists/",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -580,10 +524,28 @@ optAssets.get_collection_list = {
   },
   docs: [
     {
-      field: "q",
+      field: "start_time",
       type: "String",
       status: "optional",
-      description: "Search name",
+      description: "Format should be HH:mm. Required along with end_time, record_date and timezone",
+    },
+    {
+      field: "end_time",
+      type: "String",
+      status: "optional",
+      description: "Format should be HH:mm. Required along with start_time, record_date and timezone",
+    },
+    {
+      field: "record_date",
+      type: "String",
+      status: "optional",
+      description: "Must be in YYYY-MM-DD format. Required along with timezone and start & end time",
+    },
+    {
+      field: "timezone",
+      type: "String",
+      status: "optional",
+      description: "Required when filtering by date. Generate with Intl.DateTimeFormat().resolvedOptions().timeZone",
     },
     {
       field: "page",
@@ -611,129 +573,30 @@ optAssets.get_collection_list = {
    }`
 }
 
-optAssets.delete_collection = {
-  title: "Delete Collection",
-  header: "Header-> Authorization: Bearer token,",
-  sidebar: "Delete Collection",
-  comment: "",
-  method: "DELETE",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-
-optAssets.assign_collection_to_personnel = {
-  title: "Assign or Remove Collection from Team Member",
-  header: "Header-> Authorization: Bearer {{token}}",
-  sidebar: "Assign Admin Collection",
-  comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [
-    {
-      field: "team_id",
-      type: "String",
-      status: "required",
-      description: "ID of the team member to assign or remove collection access",
-    },
-    {
-      field: "request_type",
-      type: "String",
-      status: "required",
-      description: "1=Assign | 2=Remove",
-    },
-  ],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-optAssets.assign_collection_to_vehicle = {
-  title: "Assign or Remove Collection from Vehicle",
-  header: "Header-> Authorization: Bearer {{token}}",
-  sidebar: "Assign vehicle Collection",
-  comment: "",
-  method: "PUT",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [
-    {
-      field: "vehicle_ids",
-      type: "Array",
-      status: "required",
-      description: "ID of the vehicle to assign or remove collection access",
-    },
-    {
-      field: "request_type",
-      type: "String",
-      status: "required",
-      description: "1=Assign | 2=Remove",
-    },
-  ],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-
 
 const RouteContainer = [
   {
-    name: "Vehicle List & Devices",
+    name: "Vehicle & Devices",
     route: "operator",
     routes: [
-      optAssets.add_new_device,
-      optAssets.assign_device_to_vehicle,
-      optAssets.get_device_list,
-      optAssets.delete_device,
-      optAssets.add_new_vehicle,
-      optAssets.update_vehicle_status,
-      optAssets.get_vehicle,
-      optAssets.delete_vehicle,
+      optAssetDoc.add_new_device,
+      optAssetDoc.assign_device_to_vehicle,
+      optAssetDoc.get_device_list,
+      optAssetDoc.delete_device,
+      optAssetDoc.add_new_vehicle,
+      optAssetDoc.update_vehicle_status,
+      optAssetDoc.get_vehicle,
+      optAssetDoc.delete_vehicle,
     ]
   },
   {
-    name: "Collection List",
+    name: "Alarms & Locations",
     route: "operator",
     routes: [
-      optAssets.add_new_collection,
-      optAssets.update_collection_status,
-      optAssets.get_collection_list,
-      optAssets.delete_collection,
-      optAssets.assign_collection_to_personnel,
-      optAssets.assign_collection_to_vehicle,
-    ]
-  },
-  {
-    name: "Alarm List",
-    route: "operator",
-    routes: [
-      optAssets.update_alarm_status,
-      optAssets.get_alarm,
-      optAssets.delete_alarm,
+      optAssetDoc.update_alarm_status,
+      optAssetDoc.get_alarm,
+      optAssetDoc.delete_alarm,
+      optAssetDoc.get_vehlocation,
     ]
   },
 ]
