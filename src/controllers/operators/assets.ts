@@ -49,7 +49,6 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
     })
   }
 
-
   async assignCollections(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return this.__run({

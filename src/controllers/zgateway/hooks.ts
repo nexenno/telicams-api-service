@@ -5,6 +5,7 @@ import { GatewayHookService } from "../../services/gateway-hooks";
 
 export default class OperatorAccountController extends SimpleNodeJsController {
   protected __checkContext(): void {
+    console.log("Gateway hook called with query:", this.req.query, "and body:", this.req.body)
     //get the authorization header
     let authHeader = this.req.headers['authorization'];
     //check if the header is missing
