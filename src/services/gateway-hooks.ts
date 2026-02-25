@@ -151,7 +151,7 @@ export class GatewayHookService {
     //update the device online status to true
     let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({
       device_number: deviceID
-    }, { $set: { gateway_status: 1 } }, { new: true }).lean().catch((e) => ({ error: e }));
+    }, { $set: { gateway_status: 1 } }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {
@@ -204,7 +204,7 @@ export class GatewayHookService {
     //update the device online status to false
     let updateDevice: SendDBQuery = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
       $set: { gateway_status: 0 }
-    }, { new: true }).lean().catch((e) => ({ error: e }));
+    }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {
