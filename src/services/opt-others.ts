@@ -165,7 +165,7 @@ export class OperatorOtherService {
     let optID = helpers.getOperatorAuthID(userData)
 
     if (!status) return helpers.outputError(res, null, "Status is required")
-    if (["1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status")
+    if (!["1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status")
 
     //if status is 2, check if there's any active vehicle under the collection
     if (status === "2") {
