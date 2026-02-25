@@ -15,8 +15,6 @@ export class GatewayHookService {
     let cityID = body.cityId || ""
     let licensePlate = body.licensePlate || ""
 
-    console.log("RegisterNewDevice called with body:", body)
-
     //validate the inputs
     if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
     if (!model) return helpers.outputError(res, null, "Model is required")
@@ -40,8 +38,6 @@ export class GatewayHookService {
       return helpers.outputError(res, null, "Manufacturer must be between 2 and 50 characters")
     }
 
-    console.log("Model length: ", model)
-
     if (model.length < 2 || model.length > 50) {
       return helpers.outputError(res, null, "Model must be between 2 and 50 characters")
     }
@@ -64,14 +60,10 @@ export class GatewayHookService {
       }
     }
 
-    console.log("Input validation pass", deviceID)
-
     //check if the device is prepared on the system already
     let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
       device_number: deviceID
     }).lean().catch((e) => ({ error: e }));
-
-    console.log("Device fetch result: ", getDevice)
 
     //if there's an error, return it
     if (getDevice && getDevice.error) {
@@ -87,8 +79,6 @@ export class GatewayHookService {
       return helpers.outputError(res, null, "Device is not active for registration")
     }
 
-    console.log("Device is active for registration, proceeding with registration process")
-
     //if the gateway status already registered
     if (getDevice.gateway_status === 1) return res.status(200).json({ approved: true })
 
@@ -100,8 +90,6 @@ export class GatewayHookService {
       }
     }, { new: true }).lean().catch((e) => ({ error: e }));
 
-    console.log("Device update result: ", updateDevice)
-
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {
       console.log("Error updating device for registration ", updateDevice.error)
@@ -109,8 +97,6 @@ export class GatewayHookService {
     }
     //if the device is not found after update, return an error
     if (!updateDevice) return helpers.outputError(res, 404, "Device not found after update.")
-
-    console.log("Device updated successfully with gateway registration info", updateDevice)
 
     //log the registration activity
     await helpers.logDashcamActivity({
@@ -217,7 +203,7 @@ export class GatewayHookService {
 
     //update the device online status to false
     let updateDevice: SendDBQuery = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
-      $set: { online: false }
+      $set: { gateway_status: 0 }
     }, { new: true }).lean().catch((e) => ({ error: e }));
 
     //if there's an error, return it
