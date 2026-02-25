@@ -255,6 +255,7 @@ export class OperatorAssetService {
       // if (!deviceOEM) return helpers.outputError(res, null, "Device OEM is required")
       qBuilder.created_by = "operator"
       qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
+      qBuilder.assign_status = 1
     }
 
     if (deviceModel) {
@@ -432,7 +433,7 @@ export class OperatorAssetService {
 
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "No data to process");
 
-    let createVehicle: SendDBQuery = id ? OptVehicleListModel.findOneAndUpdate({ _id: id, operator_id: optID },
+    let createVehicle: SendDBQuery = id ? await OptVehicleListModel.findOneAndUpdate({ _id: id, operator_id: optID },
       { $set: qBuilder }, { new: true, lean: true }).catch(e => ({ error: e })) :
       await OptVehicleListModel.create(qBuilder).catch(e => ({ error: e }));
 

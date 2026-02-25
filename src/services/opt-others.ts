@@ -44,7 +44,7 @@ export class OperatorOtherService {
 
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "No data to process")
 
-    let createColl: SendDBQuery = id ? CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
+    let createColl: SendDBQuery = id ? await CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
       { $set: qBuilder }, { new: true, lean: true }).catch(e => ({ error: e })) :
       await CollectionListModel.create(qBuilder).catch(e => ({ error: e }));
 
