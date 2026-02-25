@@ -8,19 +8,28 @@ import { PrivateMethodProps, SendDBQuery } from "../typings/general";
 export class GatewayHookService {
 
   static async RegisterNewDevice({ res, body }: PrivateMethodProps) {
-    let deviceID = body.deviceId
-    let manufacturer = body.manufacturer
-    let model = body.model
-    let provinceID = body.provinceId
-    let cityID = body.cityId
-    let licensePlate = body.licensePlate
+    let deviceID = body.deviceId || ""
+    let manufacturer = body.manufacturer || ""
+    let model = body.model || ""
+    let provinceID = body.provinceId || ""
+    let cityID = body.cityId || ""
+    let licensePlate = body.licensePlate || ""
+
+    console.log("RegisterNewDevice called with body:", body)
 
     //validate the inputs
     if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-    if (!manufacturer) return helpers.outputError(res, null, "Manufacturer is required")
     if (!model) return helpers.outputError(res, null, "Model is required")
-    if (!provinceID) return helpers.outputError(res, null, "Province ID is required")
-    if (!cityID) return helpers.outputError(res, null, "City ID is required")
+    if (!manufacturer) return helpers.outputError(res, null, "Manufacturer is required")
+    // if (!provinceID) return helpers.outputError(res, null, "Province ID is required")
+    // if (!cityID) return helpers.outputError(res, null, "City ID is required")
+
+    manufacturer = String(manufacturer).trim()
+    model = String(model).trim()
+    deviceID = String(deviceID).trim()
+    provinceID = String(provinceID).trim()
+    cityID = String(cityID).trim()
+    licensePlate = String(licensePlate).trim()
 
     //register the device in the database
     if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
@@ -30,14 +39,23 @@ export class GatewayHookService {
     if (manufacturer.length < 2 || manufacturer.length > 50) {
       return helpers.outputError(res, null, "Manufacturer must be between 2 and 50 characters")
     }
+
+    console.log("Model length: ", model)
+
     if (model.length < 2 || model.length > 50) {
       return helpers.outputError(res, null, "Model must be between 2 and 50 characters")
     }
-    if (!helpers.isNumber({ input: String(provinceID), type: "int", minLength: 1, maxLength: 10 })) {
-      return helpers.outputError(res, null, "Province ID must be a number between 1 and 10 digits")
+
+    if (provinceID) {
+      if (!helpers.isNumber({ input: String(provinceID), type: "int", minLength: 1, maxLength: 10 })) {
+        return helpers.outputError(res, null, "Province ID must be a number between 1 and 10 digits")
+      }
     }
-    if (!helpers.isNumber({ input: String(cityID), type: "int", minLength: 1, maxLength: 10 })) {
-      return helpers.outputError(res, null, "City ID must be a number between 1 and 10 digits")
+
+    if (cityID) {
+      if (!helpers.isNumber({ input: String(cityID), type: "int", minLength: 1, maxLength: 10 })) {
+        return helpers.outputError(res, null, "City ID must be a number between 1 and 10 digits")
+      }
     }
 
     if (licensePlate) {
@@ -46,23 +64,29 @@ export class GatewayHookService {
       }
     }
 
+    console.log("Input validation pass", deviceID)
+
     //check if the device is prepared on the system already
     let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
       device_number: deviceID
     }).lean().catch((e) => ({ error: e }));
+
+    console.log("Device fetch result: ", getDevice)
 
     //if there's an error, return it
     if (getDevice && getDevice.error) {
       console.log("Error fetching device for registration ", getDevice.error)
       return helpers.outputError(res, 500)
     }
+
     //if the device is not found
     if (!getDevice) return helpers.outputError(res, 404, "Device not found.")
 
     //if the device is not active for registration, return an error
-    if (getDevice.active_status !== 1 || !getDevice.operator_id) {
+    if (getDevice.active_status === 2 || !getDevice.operator_id) {
       return helpers.outputError(res, null, "Device is not active for registration")
     }
+    console.log("Device is active for registration, proceeding with registration process")
 
     //if the gateway status already registered
     if (getDevice.gateway_status === 1) return res.status(200).json({ approved: true })
@@ -75,6 +99,8 @@ export class GatewayHookService {
       }
     }, { new: true }).lean().catch((e) => ({ error: e }));
 
+    console.log("Device update result: ", updateDevice)
+
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {
       console.log("Error updating device for registration ", updateDevice.error)
@@ -82,6 +108,8 @@ export class GatewayHookService {
     }
     //if the device is not found after update, return an error
     if (!updateDevice) return helpers.outputError(res, 404, "Device not found after update.")
+
+    console.log("Device updated successfully with gateway registration info", updateDevice)
 
     //log the registration activity
     await helpers.logDashcamActivity({
