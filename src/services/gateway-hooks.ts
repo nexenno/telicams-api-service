@@ -434,6 +434,14 @@ export class GatewayHookService {
     let heading = body.direction
     let gpsTime = body.gpsTime
     let accOn = body.accOn
+    let satelliteCount = body.satelliteCount
+    let signalStrength = body.signalStrength
+    let positioned = body.positioned
+
+    //if the device is not positioned or has less than 4 satellites, return an error
+    if (satelliteCount < 4 || !positioned) {
+      return helpers.outputError(res, null, "Insufficient satellite signal for location update")
+    }
 
     //validate the inputs
     if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
@@ -467,7 +475,8 @@ export class GatewayHookService {
       device_id: deviceData.device_id, operator_id: deviceData.operator_id,
       latitude, longitude, speed, heading, gps_timestamp: new Date(gpsTime + "Z"),
       acc_status: accOn ? 1 : 0, alarm_flag: body.alarmFlag, mileage: body.mileage,
-      vehicle_id: deviceData.vehicle_id || undefined
+      vehicle_id: deviceData.vehicle_id || undefined,
+      satellite_count: satelliteCount, signal_strength: signalStrength,
     }).catch((e) => ({ error: e }));
 
     //if there's an error, return it

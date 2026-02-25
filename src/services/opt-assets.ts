@@ -629,7 +629,7 @@ export class OperatorAssetService {
 
     if (collectionID) {
       //if not valid
-      if (!helpers.isInvalidID(collectionID)) return helpers.outputError(res, null, "Invalid collection ID")
+      if (helpers.isInvalidID(collectionID)) return helpers.outputError(res, null, "Invalid collection ID")
       qBuilder.collection_id = new mongoose.Types.ObjectId(collectionID)
     }
 
@@ -822,7 +822,7 @@ export class OperatorAssetService {
 
     for (let vehID of vehicleIDs) {
       //if the ID is not valid
-      if (!helpers.isInvalidID(vehID)) {
+      if (helpers.isInvalidID(vehID)) {
         if (isSyncReq) {
           return helpers.outputError(res, null, `Invalid vehicle ID ${vehID}`)
         } else {
@@ -914,7 +914,7 @@ export class OperatorAssetService {
 
     for (let vehID of vehicleIDs) {
       //if the ID is not valid
-      if (!helpers.isInvalidID(vehID)) {
+      if (helpers.isInvalidID(vehID)) {
         if (isSyncReq) {
           return helpers.outputError(res, null, `Invalid vehicle ID ${vehID}`)
         } else {
@@ -1152,7 +1152,7 @@ export class OperatorAssetService {
     alarmIDs = [...new Set(alarmIDs)]
 
     for (let alarmID of alarmIDs) {
-      if (!helpers.isInvalidID(alarmID)) {
+      if (helpers.isInvalidID(alarmID)) {
         if (isSyncReq) {
           return helpers.outputError(res, null, `Invalid alarm ID ${alarmID}`)
         } else {
@@ -1216,7 +1216,7 @@ export class OperatorAssetService {
 
     for (let alarmID of alarmIDs) {
       //if the ID is not valid
-      if (!helpers.isInvalidID(alarmID)) {
+      if (helpers.isInvalidID(alarmID)) {
         if (isSyncReq) {
           return helpers.outputError(res, null, `Invalid alarm ID ${alarmID}`)
         } else {

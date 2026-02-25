@@ -10,6 +10,7 @@ import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
 import { DashcamDeviceModel } from "../models/device-lists"
 import { DashcamActivityLogModel } from "../models/device-data"
 import { OperatorLogModel } from "../models/activity-logs"
+import { fileConfig } from "./file-config";
 
 export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
 //@ts-ignore
@@ -350,6 +351,21 @@ export default class helpers {
     }
 
     return null
+  }
+
+  static async sendRequestToGateway(data: { url: string, method: 'POST' | 'GET', json?: ObjectPayload, }) {
+    let sendReq = await helpers.makeHttpRequest({
+      url: data.url, method: data.method, json: data.json,
+      headers: { "authorization": `Bearer ${fileConfig.config.gatewaySecretOut || ""}` }
+    })
+    //if there's an error, log it
+    if (sendReq && sendReq.error) {
+      console.log("Error sending request to gateway ", data.json, sendReq.error)
+      return { status: false, error: sendReq.error, data: undefined }
+    }
+    //if the request is successful, return the response
+    return sendReq.status === 200 ? { status: true, error: undefined, data: sendReq.body } :
+      { status: false, error: sendReq, data: undefined }
   }
 
   //for logging dashcam activity

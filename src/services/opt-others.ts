@@ -244,7 +244,7 @@ export class OperatorOtherService {
     vehicleIDs = [...new Set(vehicleIDs)]
 
     for (let vehicleID of vehicleIDs) {
-      if (!helpers.isInvalidID(vehicleID)) {
+      if (helpers.isInvalidID(vehicleID)) {
         if (isSyncReq) {
           return helpers.outputError(res, null, `Invalid vehicle ID ${vehicleID}`)
         } else {

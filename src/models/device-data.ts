@@ -145,6 +145,14 @@ const DashcamLocations = new mongoose.Schema({
     enum: [0, 1], //0 - no alarm, 1 - alarm
     default: 0,
   },
+  satellite_count: {
+    type: Number,
+    default: 0,
+  },
+  signal_strength: {
+    type: Number,
+    default: 0,
+  },
   mileage: {
     type: Number,
     default: 0,
