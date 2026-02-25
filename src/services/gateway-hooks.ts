@@ -482,13 +482,13 @@ export class GatewayHookService {
 
     //if there's data, log it
     if (summary && summary.start_time) {
-      await LocationSummaryModel.create({
+      let logSum: SendDBQuery = await LocationSummaryModel.create({
         device_id: deviceData.device_id, operator_id: deviceData.operator_id,
         vehicle_id: deviceData.vehicle_id, ...summary
       }).catch((e) => ({ error: e }));
       //if there's an error, return it
-      if (logData && logData.error) {
-        console.log("Error logging location summary ", logData.error)
+      if (logSum && logSum.error) {
+        console.log("Error logging location summary ", logSum.error)
       }
     }
 
