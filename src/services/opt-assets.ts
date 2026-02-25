@@ -52,6 +52,7 @@ export class OperatorAssetService {
       { $sort: { _id: -1 } },
       { $skip: getPage.data.page },
       { $limit: getPage.data.item_per_page },
+      { $addFields: { device_id: "$_id" } },
       { $unset: ["__v", "_id", "operator_id"] },
     ]
 
