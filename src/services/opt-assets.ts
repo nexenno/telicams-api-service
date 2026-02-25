@@ -81,22 +81,20 @@ export class OperatorAssetService {
         default:
           return helpers.outputError(res, null, "Component is invalid")
       }
-
-      let getData: SendDBQuery = await DashcamDeviceModel.aggregate(pipLine).catch(e => ({ error: e }))
-
-      if (getData && getData.error) {
-        console.log("Error getting device count by status", getData.error)
-        return helpers.outputError(res, 500)
-      }
-
-      if (component) {
-        getData = getData.length ? getData[0] : {}
-      }
-
-      return helpers.outputSuccess(res, getData)
-
     }
 
+    let getData: SendDBQuery = await DashcamDeviceModel.aggregate(pipLine).catch(e => ({ error: e }))
+
+    if (getData && getData.error) {
+      console.log("Error getting device count by status", getData.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (component) {
+      getData = getData.length ? getData[0] : {}
+    }
+
+    return helpers.outputSuccess(res, getData)
   }
 
   static async AssignDeviceToVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
