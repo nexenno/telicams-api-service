@@ -526,25 +526,25 @@ optAssetDoc.get_vehlocation = {
     {
       field: "start_time",
       type: "String",
-      status: "optional",
+      status: "required",
       description: "Format should be HH:mm. Required along with end_time, record_date and timezone",
     },
     {
       field: "end_time",
       type: "String",
-      status: "optional",
+      status: "required",
       description: "Format should be HH:mm. Required along with start_time, record_date and timezone",
     },
     {
       field: "record_date",
       type: "String",
-      status: "optional",
+      status: "required",
       description: "Must be in YYYY-MM-DD format. Required along with timezone and start & end time",
     },
     {
       field: "timezone",
       type: "String",
-      status: "optional",
+      status: "required",
       description: "Required when filtering by date. Generate with Intl.DateTimeFormat().resolvedOptions().timeZone",
     },
     {
