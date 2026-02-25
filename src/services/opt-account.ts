@@ -418,7 +418,7 @@ export class OperatorAccountService {
 
     if (phoneNumber) {
       if (!helpers.isNumber({ input: phoneNumber, type: "int", minLength: 9, maxLength: 12 })) {
-        return helpers.outputError(res, null, "Invalid phone number. Phone number expects 11 digits");
+        return helpers.outputError(res, null, "Invalid phone number. Phone number expects 9 to 12 digits");
       }
       queryBuilder.phone_number = phoneNumber
     }
