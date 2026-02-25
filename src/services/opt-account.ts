@@ -417,14 +417,7 @@ export class OperatorAccountService {
     }
 
     if (phoneNumber) {
-      if (!/^[0-9]+$/.test(phoneNumber)) {
-        return helpers.outputError(res, null, "Phone number should be digits only");
-      }
-
-      if (!/^0/.test(phoneNumber)) {
-        return helpers.outputError(res, null, "Phone number must start with zero. e.g (070........)");
-      }
-      if (phoneNumber.length !== 11) {
+      if (!helpers.isNumber({ input: phoneNumber, type: "int", minLength: 9, maxLength: 12 })) {
         return helpers.outputError(res, null, "Invalid phone number. Phone number expects 11 digits");
       }
       queryBuilder.phone_number = phoneNumber
