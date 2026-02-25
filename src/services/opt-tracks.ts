@@ -3,7 +3,7 @@ import { serviceEndpoint } from "../assets/var-config";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 import { PrivateMethodProps, SendDBQuery } from "../typings/general";
 
-export class OperatorOtherService {
+export class OperatorTrackingService {
 
 
   //========**************COLLECTION SECTION***********=========================/
@@ -40,7 +40,7 @@ export class OperatorOtherService {
       return helpers.outputError(res, null, "No device assigned to this vehicle")
     }
     //if there's a mismatch between the device and vehicle, return an error
-    if (!optVehicle.device_id.vehicle_id || optVehicle.device_id.vehicle_id !== vehicleID) {
+    if (!optVehicle.device_id.vehicle_id || String(optVehicle.device_id.vehicle_id) !== vehicleID) {
       return helpers.outputError(res, null, "Device and vehicle mismatch. Cannot start stream")
     }
 
@@ -86,4 +86,112 @@ export class OperatorOtherService {
     return helpers.outputSuccess(res, startStreamReq.data)
   }
 
+  static async StopDeviceStream({ body, id, res, req, customData: userData }: PrivateMethodProps) {
+    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+    let channelID = helpers.getInputValueString(body, "channel_id")
+    let optID = helpers.getOperatorAuthID(userData)
+    //if there's no vehicle ID
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+    //if there's no channel ID
+    if (!channelID) return helpers.outputError(res, null, "Channel ID is required")
+
+    if (!helpers.isNumber({ input: channelID, type: "int", min: 1, max: 4 })) {
+      return helpers.outputError(res, null, "Invalid channel ID. Must be a number between 1 and 4")
+    }
+
+    //check if the device number belongs to the operator
+    let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+      operator_id: optID, vehicle_id: vehicleID
+    }).populate("device_id", "vehicle_id, device_number, operator_id").lean().catch((e) => ({ error: e }))
+
+    //if there's an error, return it
+    if (optVehicle && optVehicle.error) return helpers.outputError(res, 500)
+
+    //if there's no device, return an error
+    if (!optVehicle) return helpers.outputError(res, null, "Vehicle not found")
+
+    //if the vehicle does not have a device assigned, return an error
+    if (!optVehicle.device_id || !optVehicle.device_id._id) {
+      return helpers.outputError(res, null, "No device assigned to this vehicle")
+    }
+    //if there's a mismatch between the device and vehicle, return an error
+    if (!optVehicle.device_id.vehicle_id || optVehicle.device_id.vehicle_id !== vehicleID) {
+      return helpers.outputError(res, null, "Device and vehicle mismatch. Cannot stop stream")
+    }
+
+    //stop the stream and return the result
+    let stopStreamReq = await helpers.sendRequestToGateway({
+      url: `${serviceEndpoint.stream_endpoint}/stop`,
+      method: "POST",
+      json: {
+        "deviceId": optVehicle.device_id.device_number,
+        "channelId": parseInt(channelID),
+      }
+    })
+
+    //if there's no result or result doesn't have a stream URL, return an error
+    if (!stopStreamReq || !stopStreamReq.data || stopStreamReq.data.status !== "INACTIVE") {
+      return helpers.outputError(res, null, "Failed to stop stream. Please try again")
+    }
+
+    return helpers.outputSuccess(res, stopStreamReq.data)
+  }
+
+  static async GetDeviceSignal({ body, id, res, req, customData: userData }: PrivateMethodProps) {
+    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+    let optID = helpers.getOperatorAuthID(userData)
+    //if there's no vehicle ID
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+
+    //check if the device number belongs to the operator
+    let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+      operator_id: optID, vehicle_id: vehicleID
+    }).populate("device_id", "vehicle_id, device_number, operator_id").lean().catch((e) => ({ error: e }))
+
+    //if there's an error, return it
+    if (optVehicle && optVehicle.error) return helpers.outputError(res, 500)
+
+    //if there's no device, return an error
+    if (!optVehicle) return helpers.outputError(res, null, "Vehicle not found")
+
+    //if the vehicle does not have a device assigned
+    if (!optVehicle.device_id || !optVehicle.device_id._id) {
+      return helpers.outputError(res, null, "No device assigned to this vehicle")
+    }
+    //if there's a mismatch between the device and vehicle, return an error
+    if (!optVehicle.device_id.vehicle_id || optVehicle.device_id.vehicle_id !== vehicleID) {
+      return helpers.outputError(res, null, "Device and vehicle mismatch. Cannot get signal")
+    }
+
+    //call the device endpoint and check for signal before starting streaming
+    let sendReq = await helpers.sendRequestToGateway({
+      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/signal`,
+      method: "GET",
+    })
+
+    //if there's no result or result doesn't have a good signal, return an error
+    if (!sendReq || !sendReq.data) {
+      return helpers.outputError(res, null, "Failed to get device signal. Please try again")
+    }
+
+    //if there's no signal strength, return an error
+    if (!sendReq.data.deviceId) return helpers.outputSuccess(res, {})
+
+    return helpers.outputSuccess(res, {
+      satellite_count: sendReq.data.satelliteCount || 0,
+      acc_status: sendReq.data.accOn || false,
+      signal_strength: sendReq.data.signalStrength || 0,
+      latitude: sendReq.data.latitude || 0,
+      positioned: sendReq.data.positioned || false,
+      online_status: sendReq.data.online || false,
+      gps_time: sendReq.data.gpsTime || "",
+      device_id: sendReq.data.deviceId || "",
+      speed: sendReq.data.speed || 0.0,
+      timestamp: sendReq.data.timestamp || "",
+      longitude: sendReq.data.longitude || 0.0,
+      emergency_alarm: sendReq.data.emergencyAlarm || false,
+    })
+  }
 }
