@@ -98,6 +98,7 @@ export class OperatorOtherService {
         { $sort: { _id: -1 as -1 } },
         { $skip: pageItem.data.page },
         { $limit: pageItem.data.item_per_page },
+        { $addFields: { collection_id: "$_id" } },
       ]),
       {
         $lookup: {
