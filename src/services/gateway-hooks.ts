@@ -83,9 +83,10 @@ export class GatewayHookService {
     if (!getDevice) return helpers.outputError(res, 404, "Device not found.")
 
     //if the device is not active for registration, return an error
-    if (getDevice.active_status === 2 || !getDevice.operator_id) {
+    if (getDevice.active_status !== 1 || !getDevice.operator_id) {
       return helpers.outputError(res, null, "Device is not active for registration")
     }
+
     console.log("Device is active for registration, proceeding with registration process")
 
     //if the gateway status already registered
@@ -95,7 +96,7 @@ export class GatewayHookService {
     let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
       $set: {
         device_oem: manufacturer, device_model: model, province_id: provinceID,
-        city_id: cityID, license_plate: licensePlate, gateway_status: 1
+        city_id: cityID, license_plate: licensePlate, gateway_status: 1,
       }
     }, { new: true }).lean().catch((e) => ({ error: e }));
 
@@ -136,9 +137,9 @@ export class GatewayHookService {
     //   "connectedAt": "2026-02-21T10:30:00",
     //   "timestamp": "2026-02-21T10:30:00"
     // }
-    let deviceID = body.deviceId
-    let manufacturer = body.manufacturer
-    let model = body.model
+    let deviceID = String(body.deviceId || "").trim()
+    let manufacturer = String(body.manufacturer || "").trim()
+    let model = String(body.model || "").trim()
     let reconnectCount = body.reconnectCount
     let connectedAt = body.connectedAt
 
@@ -162,9 +163,9 @@ export class GatewayHookService {
     res.status(200).json({ success: true })
 
     //update the device online status to true
-    let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
-      $set: { online: true }
-    }, { new: true }).lean().catch((e) => ({ error: e }));
+    let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({
+      device_number: deviceID
+    }, { $set: { gateway_status: 1 } }, { new: true }).lean().catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {

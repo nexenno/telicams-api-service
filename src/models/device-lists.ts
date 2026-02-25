@@ -28,11 +28,6 @@ const DashcamList = new mongoose.Schema({
     type: String,
     maxlength: 50,
   },
-  online: {
-    type: Boolean,
-    default: false,
-    index: true,
-  },
   province_id: {
     type: String,
     maxlength: 20,
@@ -47,7 +42,7 @@ const DashcamList = new mongoose.Schema({
   },
   gateway_status: {
     type: Number,
-    enum: [0, 1], //0 - not registered, 1 - registered
+    enum: [0, 1], //0 - not online, 1 - online
     default: 0,
   },
   active_status: {
