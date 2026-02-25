@@ -1096,6 +1096,7 @@ export class OperatorAssetService {
               $group: {
                 _id: null,
                 total_count: { $sum: 1 },
+                total_critical: { $sum: { $cond: [{ $eq: ["$severity", "CRITICAL"] }, 1, 0] } },
                 total_resolved: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
                 total_unresolved: { $sum: { $cond: [{ $ne: ["$status", 0] }, 1, 0] } },
               }
@@ -1353,7 +1354,7 @@ export class OperatorAssetService {
                 let: { vehID: new mongoose.Types.ObjectId(vehicleID), optID: new mongoose.Types.ObjectId(optID) },
                 pipeline: [
                   { $match: { $expr: { $and: [{ $eq: ["$_id", "$$vehID"] }, { $eq: ["$operator_id", "$$optID"] }] } } },
-                  { $project: { plate_number: 1, vehspeed_limit: 1, online: 1 } }
+                  { $project: { plate_number: 1, vehspeed_limit: 1, online_status: 1 } }
                 ],
                 as: "vehicle_data"
 
@@ -1364,7 +1365,7 @@ export class OperatorAssetService {
               $addFields: {
                 speed_limit: "$vehicle_data.vehspeed_limit",
                 plate_number: "$vehicle_data.plate_number",
-                online: "$vehicle_data.online"
+                online_status: "$vehicle_data.online_status"
               }
             },
             { $unset: ["_id", "vehicle_data"] }
