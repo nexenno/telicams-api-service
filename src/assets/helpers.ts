@@ -341,9 +341,9 @@ export default class helpers {
     //if there's data and no error, store it in the map and return the data
     if (deviceData && !deviceData.error) {
       let sendData = {
-        operator_id: String(deviceData.operator_id),
-        vehicle_id: String(deviceData.vehicle_id),
-        device_id: String(deviceData._id)
+        operator_id: deviceData.operator_id ? String(deviceData.operator_id) : undefined,
+        vehicle_id: deviceData.vehicle_id ? String(deviceData.vehicle_id) : undefined,
+        device_id: deviceData._id ? String(deviceData._id) : undefined
       }
       GlobalConnectedDevices.set(deviceNumber, sendData)
       return sendData

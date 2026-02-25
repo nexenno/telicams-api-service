@@ -163,9 +163,9 @@ export class GatewayHookService {
 
     //set global connected 
     GlobalConnectedDevices.set(deviceID, {
-      device_id: String(updateDevice._id),
-      operator_id: String(updateDevice.operator_id || ""),
-      vehicle_id: String(updateDevice.vehicle_id || "")
+      device_id: updateDevice._id ? String(updateDevice._id) : undefined,
+      operator_id: updateDevice.operator_id ? String(updateDevice.operator_id) : undefined,
+      vehicle_id: updateDevice.vehicle_id ? String(updateDevice.vehicle_id) : undefined
     })
 
     // log the connection event in the database for analytics and monitoring

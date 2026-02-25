@@ -7,7 +7,7 @@ export type UserTypes = (typeof varConfig.user_types)[number]
 export type SendDBQuery<T = ObjectPayload> = T & { error?: any } | ObjectPayload & { error?: any } | null
 export type PipelineQuery = PipelineStage[]
 export type NotificationType = (typeof varConfig.notification_type)[number]
-export type ConnectedDeviceValues = { operator_id: string; vehicle_id: string; device_id: string }
+export type ConnectedDeviceValues = Partial<{ operator_id: string; vehicle_id: string; device_id: string }>
 
 export type MakeHTTPReqProp = {
   url: string;
