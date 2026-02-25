@@ -21,6 +21,7 @@ export const DatabaseTableList = {
   dashcam_alarms: "dashcam_alarms",
   dashcam_activity_logs: "dashcam_logs",
   dashcam_locations: "dashcam_locations",
+  dashcam_locstats: "dashcam_locstats",
   operator_logs: "operator_logs",
   operator_teams: "operator_teams",
   operator_roles: "operator_roles",

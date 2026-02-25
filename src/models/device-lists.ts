@@ -5,12 +5,12 @@ import { dbConn, InferSchemaType, mongoose, tableID } from "./dbConnector";
 const DashcamList = new mongoose.Schema({
   operator_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.user_operators,
   },
   vehicle_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.vehicle_lists,
   },
   device_number: {

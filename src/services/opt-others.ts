@@ -92,10 +92,10 @@ export class OperatorOtherService {
 
     let pipLine: PipelineQuery = [
       { $match: qBuilder },
-      { $sort: { _id: -1 as -1 } },
-      ...(component === "export" ? [
-        { $limit: 20000 },
+      ...(component === "count" ? [
+        { $count: "total" },
       ] : [
+        { $sort: { _id: -1 as -1 } },
         { $skip: pageItem.data.page },
         { $limit: pageItem.data.item_per_page },
       ]),

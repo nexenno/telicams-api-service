@@ -5,12 +5,12 @@ import { dbConn, InferSchemaType, mongoose, tableID } from "./dbConnector";
 const DashcamAlarms = new mongoose.Schema({
   operator_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.user_operators,
   },
   vehicle_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.vehicle_lists,
   },
   device_id: {
@@ -67,7 +67,7 @@ const DashcamAlarms = new mongoose.Schema({
 const DashcamActivityLog = new mongoose.Schema({
   operator_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.user_operators,
   },
   device_id: {
@@ -78,7 +78,7 @@ const DashcamActivityLog = new mongoose.Schema({
   },
   vehicle_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.vehicle_lists,
   },
   activity_type: {
@@ -101,7 +101,7 @@ const DashcamActivityLog = new mongoose.Schema({
 const DashcamLocations = new mongoose.Schema({
   operator_id: {
     type: Schema.Types.ObjectId,
-    index: true,
+    index: { sparse: true },
     ref: DatabaseTableList.user_operators,
   },
   device_id: {
@@ -109,6 +109,11 @@ const DashcamLocations = new mongoose.Schema({
     index: true,
     required: true,
     ref: DatabaseTableList.dashcam_devices,
+  },
+  vehicle_id: {
+    type: Schema.Types.ObjectId,
+    index: { sparse: true },
+    ref: DatabaseTableList.vehicle_lists,
   },
   latitude: {
     type: Number,
@@ -145,6 +150,41 @@ const DashcamLocations = new mongoose.Schema({
   minimize: true
 })
 
+const LocationSummary = new mongoose.Schema({
+  operator_id: {
+    type: Schema.Types.ObjectId,
+    index: { sparse: true },
+    ref: DatabaseTableList.user_operators,
+  },
+  device_id: {
+    type: Schema.Types.ObjectId,
+    index: true,
+    required: true,
+    ref: DatabaseTableList.dashcam_devices,
+  },
+  vehicle_id: {
+    type: Schema.Types.ObjectId,
+    index: { sparse: true },
+    ref: DatabaseTableList.vehicle_lists,
+  },
+  start_time: Date,
+  end_time: Date,
+  distance: Number,
+  max_speed: Number,
+  average_speed: Number,
+  driving_time: Number,
+  stationary_time: Number,
+  parking_time: Number,
+  speed_violations: Number,
+  alarms: Number,
+  mild_alarms: Number,
+  critical_alarms: Number,
+}, {
+  id: true,
+  timestamps: true,
+  minimize: true
+})
+
 export const DashcamAlarmModel = dbConn.model(DatabaseTableList.dashcam_alarms, DashcamAlarms)
 export type DashcamAlarmTypes = InferSchemaType<typeof DashcamAlarms> & tableID
 
@@ -153,3 +193,6 @@ export type DashcamActivityLogTypes = InferSchemaType<typeof DashcamActivityLog>
 
 export const DashcamLocationModel = dbConn.model(DatabaseTableList.dashcam_locations, DashcamLocations)
 export type DashcamLocationTypes = InferSchemaType<typeof DashcamLocations> & tableID
+
+export const LocationSummaryModel = dbConn.model(DatabaseTableList.dashcam_locstats, LocationSummary)
+export type LocationSummaryTypes = InferSchemaType<typeof LocationSummary> & tableID

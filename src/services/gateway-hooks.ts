@@ -1,6 +1,8 @@
 import helpers, { GlobalConnectedDevices } from "../assets/helpers";
-import { DashcamAlarmModel, DashcamLocationModel } from "../models/device-data";
+import { TripProcessor } from "../assets/helputil";
+import { DashcamAlarmModel, DashcamLocationModel, LocationSummaryModel } from "../models/device-data";
 import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
+import { IncomingLocationPacket } from "../typings/gateway";
 import { PrivateMethodProps, SendDBQuery } from "../typings/general";
 
 export class GatewayHookService {
@@ -448,8 +450,9 @@ export class GatewayHookService {
 
     let logData: SendDBQuery = await DashcamLocationModel.create({
       device_id: deviceData.device_id, operator_id: deviceData.operator_id,
-      latitude, longitude, speed, heading, gps_timestamp: gpsTime,
+      latitude, longitude, speed, heading, gps_timestamp: new Date(gpsTime + "Z"),
       acc_status: accOn ? 1 : 0, alarm_flag: body.alarmFlag, mileage: body.mileage,
+      vehicle_id: deviceData.vehicle_id || undefined
     }).catch((e) => ({ error: e }));
 
     //if there's an error, return it
@@ -458,15 +461,24 @@ export class GatewayHookService {
       return
     }
 
-    // log the location update event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: "LOCATION_UPDATE", activity_detail: body,
-      message: `Location update received for device ${deviceID}.`,
-      vehicle_id: deviceData.vehicle_id
-    })
+    const processor = new TripProcessor()
+
+    const summary = await processor.processLocation(body as IncomingLocationPacket)
+
+    //if there's data, log it
+    if (summary && summary.start_time) {
+      await LocationSummaryModel.create({
+        device_id: deviceData.device_id, operator_id: deviceData.operator_id,
+        vehicle_id: deviceData.vehicle_id, ...summary
+      }).catch((e) => ({ error: e }));
+      //if there's an error, return it
+      if (logData && logData.error) {
+        console.log("Error logging location summary ", logData.error)
+      }
+    }
 
   }
+
 
 
 }
