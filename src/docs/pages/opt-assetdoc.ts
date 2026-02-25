@@ -512,7 +512,7 @@ optAssetDoc.delete_alarm = {
 optAssetDoc.get_vehlocation = {
   title: "Get Vehicle Location",
   header: "Header-> Authorization: Bearer token,",
-  sidebar: "Get Alarm",
+  sidebar: "Get Locations",
   comment: "",
   method: "GET",
   url: "http(s)://base-url/operators/assets/location-lists/",
