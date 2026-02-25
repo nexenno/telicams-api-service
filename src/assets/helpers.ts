@@ -211,7 +211,7 @@ export default class helpers {
       request({
         url, method: method, form: form, json: json, headers: headers, formData: formData
       }, (error, res, body) => {
-        resolve(error ? { status: res.statusCode, error: error } : { status: res.statusCode, body: body })
+        resolve(error ? { status: (res || {}).statusCode, error: error } : { status: (res || {}).statusCode, body: body })
       })
     })
   }
@@ -356,15 +356,20 @@ export default class helpers {
   static async sendRequestToGateway(data: { url: string, method: 'POST' | 'GET', json?: ObjectPayload, }) {
     let sendReq = await helpers.makeHttpRequest({
       url: data.url, method: data.method, json: data.json,
-      headers: { "authorization": `Bearer ${fileConfig.config.gatewaySecretOut || ""}` }
+      headers: { "Authorization": `Bearer ${fileConfig.config.gatewaySecretOut || ""}` }
     })
     //if there's an error, log it
     if (sendReq && sendReq.error) {
       console.log("Error sending request to gateway ", data.json, sendReq.error)
       return { status: false, error: sendReq.error, data: undefined }
     }
+
+    if (sendReq && sendReq.body) {
+      sendReq.body = typeof sendReq.body === "string" ? JSON.parse(sendReq.body) : sendReq.body
+    }
+
     //if the request is successful, return the response
-    return sendReq.status === 200 ? { status: true, error: undefined, data: sendReq.body } :
+    return (sendReq && sendReq.status) === 200 ? { status: true, error: undefined, data: sendReq.body } :
       { status: false, error: sendReq, data: undefined }
   }
 

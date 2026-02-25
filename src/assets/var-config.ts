@@ -35,12 +35,13 @@ export const DatabaseTableList = {
 }
 
 const serviceURL = {
-  gateway_service: fileConfig.config.env === "live" ? "http://localhost:4005" : "http://localhost:8080/api/v1",
+  gateway_service: fileConfig.config.env === "live" ? "http://localhost:4005" : "http://178.62.0.219:8080/api/v1",
+  // gateway_service: fileConfig.config.env === "live" ? "http://localhost:4005" : "http://localhost:8080/api/v1",
 };
 
 export const serviceEndpoint = {
-  device_endpoint: `${serviceURL.gateway_service}/device`,
-  stream_endpoint: `${serviceURL.gateway_service}/stream`,
+  device_endpoint: `${serviceURL.gateway_service}/devices`,
+  stream_endpoint: `${serviceURL.gateway_service}/streams`,
 };
 
 

@@ -608,7 +608,6 @@ export class OperatorAssetService {
   static async GetVehicles({ query, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let deviceAssigned = helpers.getInputValueString(query, "device_assigned")
-    let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
     let endDate = helpers.getInputValueString(query, "end_date")
     let onlineStatus = helpers.getInputValueString(query, "online_status")
@@ -732,8 +731,24 @@ export class OperatorAssetService {
         }
       },
       { $unwind: { path: "$collection_data", preserveNullAndEmptyArrays: true } },
-      { $addFields: { collection_name: "$collection_data.name" } },
-      { $unset: ["__v", "_id", "collection_data",] },
+      {
+        $lookup: {
+          from: DatabaseTableList.dashcam_devices,
+          let: { deviceID: "$device_id" },
+          pipeline: [{
+            $match: { $expr: { $eq: ["$_id", "$$deviceID"] } },
+          }],
+          as: "device_data"
+        }
+      },
+      { $unwind: { path: "$device_data", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          collection_name: "$collection_data.name",
+          device_number: "$device_data.device_number",
+        }
+      },
+      { $unset: ["__v", "_id", "collection_data", "device_data"] },
     ]
 
     //if there's ID

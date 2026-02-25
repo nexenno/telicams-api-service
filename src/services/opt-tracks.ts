@@ -7,8 +7,7 @@ export class OperatorTrackingService {
 
 
   //========**************COLLECTION SECTION***********=========================/
-  static async StartDeviceStream({ body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+  static async StartDeviceStream({ body, id: vehicleID, res, req, customData: userData }: PrivateMethodProps) {
     let channelID = helpers.getInputValueString(body, "channel_id")
     let optID = helpers.getOperatorAuthID(userData)
     //if there's no vehicle ID
@@ -23,8 +22,8 @@ export class OperatorTrackingService {
 
     //check if the device number belongs to the operator
     let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      operator_id: optID, vehicle_id: vehicleID
-    }).populate("device_id", "vehicle_id, device_number, operator_id").lean().catch((e) => ({ error: e }))
+      operator_id: optID, _id: vehicleID
+    }).populate("device_id", "vehicle_id device_number operator_id").lean().catch((e) => ({ error: e }))
 
     //if there's an error, return it
     if (optVehicle && optVehicle.error) return helpers.outputError(res, 500)
@@ -79,15 +78,17 @@ export class OperatorTrackingService {
     })
 
     //if there's no result or result doesn't have a stream URL, return an error
-    if (!startStreamReq || !startStreamReq.data || startStreamReq.data.status !== "ACTIVE") {
+    if (!startStreamReq || !startStreamReq.data || !startStreamReq.data.deviceId) {
       return helpers.outputError(res, null, "Failed to start stream. Please try again")
     }
 
-    return helpers.outputSuccess(res, startStreamReq.data)
+    return helpers.outputSuccess(res, {
+      stream_url: startStreamReq.data.srsUrls.hls,
+      session_id: startStreamReq.data.sessionId,
+    })
   }
 
-  static async StopDeviceStream({ body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+  static async StopDeviceStream({ body, id: vehicleID, res, req, customData: userData }: PrivateMethodProps) {
     let channelID = helpers.getInputValueString(body, "channel_id")
     let optID = helpers.getOperatorAuthID(userData)
     //if there's no vehicle ID
@@ -102,8 +103,8 @@ export class OperatorTrackingService {
 
     //check if the device number belongs to the operator
     let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      operator_id: optID, vehicle_id: vehicleID
-    }).populate("device_id", "vehicle_id, device_number, operator_id").lean().catch((e) => ({ error: e }))
+      operator_id: optID, _id: vehicleID
+    }).populate("device_id", "vehicle_id device_number operator_id").lean().catch((e) => ({ error: e }))
 
     //if there's an error, return it
     if (optVehicle && optVehicle.error) return helpers.outputError(res, 500)
@@ -116,7 +117,7 @@ export class OperatorTrackingService {
       return helpers.outputError(res, null, "No device assigned to this vehicle")
     }
     //if there's a mismatch between the device and vehicle, return an error
-    if (!optVehicle.device_id.vehicle_id || optVehicle.device_id.vehicle_id !== vehicleID) {
+    if (!optVehicle.device_id.vehicle_id || String(optVehicle.device_id.vehicle_id) !== vehicleID) {
       return helpers.outputError(res, null, "Device and vehicle mismatch. Cannot stop stream")
     }
 
@@ -131,15 +132,14 @@ export class OperatorTrackingService {
     })
 
     //if there's no result or result doesn't have a stream URL, return an error
-    if (!stopStreamReq || !stopStreamReq.data || stopStreamReq.data.status !== "INACTIVE") {
+    if (!stopStreamReq || !stopStreamReq.data || !stopStreamReq.data.deviceId) {
       return helpers.outputError(res, null, "Failed to stop stream. Please try again")
     }
 
-    return helpers.outputSuccess(res, stopStreamReq.data)
+    return helpers.outputSuccess(res)
   }
 
-  static async GetDeviceSignal({ body, id, res, req, customData: userData }: PrivateMethodProps) {
-    let vehicleID = helpers.getInputValueString(body, "vehicle_id")
+  static async GetDeviceSignal({ body, id: vehicleID, res, req, customData: userData }: PrivateMethodProps) {
     let optID = helpers.getOperatorAuthID(userData)
     //if there's no vehicle ID
     if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
@@ -147,8 +147,8 @@ export class OperatorTrackingService {
 
     //check if the device number belongs to the operator
     let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      operator_id: optID, vehicle_id: vehicleID
-    }).populate("device_id", "vehicle_id, device_number, operator_id").lean().catch((e) => ({ error: e }))
+      operator_id: optID, _id: vehicleID
+    }).populate("device_id", "vehicle_id device_number operator_id").lean().catch((e) => ({ error: e }))
 
     //if there's an error, return it
     if (optVehicle && optVehicle.error) return helpers.outputError(res, 500)
@@ -160,8 +160,9 @@ export class OperatorTrackingService {
     if (!optVehicle.device_id || !optVehicle.device_id._id) {
       return helpers.outputError(res, null, "No device assigned to this vehicle")
     }
+
     //if there's a mismatch between the device and vehicle, return an error
-    if (!optVehicle.device_id.vehicle_id || optVehicle.device_id.vehicle_id !== vehicleID) {
+    if (!optVehicle.device_id.vehicle_id || String(optVehicle.device_id.vehicle_id) !== vehicleID) {
       return helpers.outputError(res, null, "Device and vehicle mismatch. Cannot get signal")
     }
 

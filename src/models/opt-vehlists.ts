@@ -1,5 +1,5 @@
 import { DatabaseTableList } from "../assets/var-config";
-import { dbConn, InferSchemaType, mongoose } from "./dbConnector";
+import { dbConn, InferSchemaType, mongoose, tableID } from "./dbConnector";
 const Schema = mongoose.Schema;
 
 const OptVehicles = new Schema({
@@ -96,5 +96,5 @@ const OptVehicles = new Schema({
 OptVehicles.index({ location: "2dsphere" });
 
 const OptVehicleListModel = dbConn.model(DatabaseTableList.vehicle_lists, OptVehicles);
-type OptVehicleListTypes = InferSchemaType<typeof OptVehicles> & { _id: mongoose.Types.ObjectId }
+type OptVehicleListTypes = InferSchemaType<typeof OptVehicles> & tableID
 export { OptVehicleListModel, OptVehicleListTypes };
