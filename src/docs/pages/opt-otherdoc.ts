@@ -178,7 +178,7 @@ optOtherDoc.delete_collection = {
   sidebar: "Delete Collection",
   comment: "",
   method: "DELETE",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
+  url: "http(s)://base-url/operators/assets/collection-assignments/{{collection_id}}",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -199,7 +199,7 @@ optOtherDoc.assign_collection_to_personnel = {
   sidebar: "Assign Admin Collection",
   comment: "",
   method: "PATCH",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
+  url: "http(s)://base-url/operators/assets/collection-assignments/{{collection_id}}",
   doc_header: {
     field: "Field",
     type: "Type",
