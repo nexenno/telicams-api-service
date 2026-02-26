@@ -79,6 +79,7 @@ export class OperatorAssetService {
             },
           ]
           break;
+
         default:
           return helpers.outputError(res, null, "Component is invalid")
       }
@@ -791,6 +792,62 @@ export class OperatorAssetService {
             { $unwind: { path: "$device_data", preserveNullAndEmptyArrays: true } },
             { $addFields: { total_online: "$device_data.total" } },
             { $unset: ["_id", "device_data"] }
+          ]
+          break;
+        case "count-profilestat":
+          pipLine = [
+            { $match: qBuilder },
+            { $project: { _id: 1 } },
+            {
+              $lookup: {
+                from: DatabaseTableList.dashcam_locations,
+                let: { vehID: "$_id", optID: new mongoose.Types.ObjectId(optID) },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$vehicle_id", "$$vehID"] },
+                          { $eq: ["$operator_id", "$$optID"] }
+                        ]
+                      }
+                    }
+                  },
+                  { $count: "total" }
+                ],
+                as: "total_location"
+              }
+            },
+            {
+              $lookup: {
+                from: DatabaseTableList.dashcam_alarms,
+                let: { vehID: "$_id", optID: new mongoose.Types.ObjectId(optID) },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$vehicle_id", "$$vehID"] },
+                          { $eq: ["$operator_id", "$$optID"] }
+                        ]
+                      }
+                    }
+                  },
+                  { $count: "total" }
+                ],
+                as: "total_alarms"
+              }
+            },
+            { $unwind: { path: "$total_location", preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: "$total_alarms", preserveNullAndEmptyArrays: true } },
+            {
+              $project: {
+                total_alarm: { $ifNull: ["$total_alarms.total", 0] },
+                total_location: { $ifNull: ["$total_location.total", 0] },
+                total_media: { $ifNull: ["$total_media.total", 0] },
+              }
+            },
+            { $unset: ["_id"] }
           ]
           break;
         case "export":

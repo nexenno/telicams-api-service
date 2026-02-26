@@ -74,6 +74,11 @@ const OptVehicles = new Schema({
     type: Number,
     default: 0,
   },
+  engine_shutdown: {
+    type: Number,
+    default: 0,
+    // 0=> not shutdown, 1=> shutdown
+  },
   vehicle_status: {
     type: Number,
     enum: [0, 1, 2], //0-pending, 1-active, 2-suspended,
