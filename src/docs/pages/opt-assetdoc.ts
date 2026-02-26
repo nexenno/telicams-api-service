@@ -404,6 +404,12 @@ optAssetDoc.engine_shutdown = {
       status: "required",
       description: "1=activate | 2=shutdown",
     },
+    {
+      field: "reason",
+      type: "String",
+      status: "required",
+      description: "",
+    },
   ],
   response: `   {
       status: "ok",
