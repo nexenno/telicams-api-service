@@ -11,6 +11,7 @@ import { DashcamDeviceModel } from "../models/device-lists"
 import { DashcamActivityLogModel } from "../models/device-data"
 import { OperatorLogModel } from "../models/activity-logs"
 import { fileConfig } from "./file-config";
+import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 
 export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
 //@ts-ignore
@@ -398,5 +399,42 @@ export default class helpers {
   //   if (!data.auth_id || !data.body || !data.operation) return
   //   await AdminLogModel.create(data).catch(e => ({ error: e }))
   // }
+
+  static async checkVehicleBelongsToOperator(vehicleID: string, optID: string | undefined) {
+    //check if the device number belongs to the operator
+    let optVehicle: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+      operator_id: optID, _id: vehicleID
+    }).populate("device_id", "vehicle_id device_number operator_id").lean().catch((e) => ({ error: e }))
+
+    //if there's an error, return it
+    if (optVehicle && optVehicle.error) return null
+
+    //if there's no device, return an error
+    if (!optVehicle) return null
+
+    //if the vehicle does not have a device assigned
+    if (!optVehicle.device_id || !optVehicle.device_id._id) return null
+
+    //if there's a mismatch between the device and vehicle, return an error
+    if (!optVehicle.device_id.vehicle_id || String(optVehicle.device_id.vehicle_id) !== vehicleID) {
+      return null
+    }
+
+    return optVehicle as (OptVehicleListTypes & { device_id: { _id: string, vehicle_id: string, device_number: string, operator_id: string } })
+  }
+
+
+  //for getting request params
+  static getRequestParams(filterObj: ObjectPayload) {
+    let filKeys = typeof filterObj === "object" ? Object.keys(filterObj) : []
+    let filStrn = '?'
+    //map the filters in
+    if (filKeys.length > 0) {
+      for (let i in filKeys) {
+        filStrn += `${filKeys[i]}=${filterObj[filKeys[i]]}${parseInt(i) + 1 === filKeys.length ? '' : '&'}`
+      }
+    }
+    return filStrn
+  }
 
 }

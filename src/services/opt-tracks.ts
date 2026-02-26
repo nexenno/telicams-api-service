@@ -1,12 +1,12 @@
-import helpers from "../assets/helpers";
+import helpers, { GlobalTimeZones } from "../assets/helpers";
 import { serviceEndpoint } from "../assets/var-config";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
-import { PrivateMethodProps, SendDBQuery } from "../typings/general";
+import { ObjectPayload, PrivateMethodProps, SendDBQuery } from "../typings/general";
 
 export class OperatorTrackingService {
 
 
-  //========**************COLLECTION SECTION***********=========================/
+  //========**************STREAMING SECTION***********=========================/
   static async StartDeviceStream({ body, id: vehicleID, res, req, customData: userData }: PrivateMethodProps) {
     let channelID = helpers.getInputValueString(body, "channel_id")
     let optID = helpers.getOperatorAuthID(userData)
@@ -83,7 +83,7 @@ export class OperatorTrackingService {
     }
 
     return helpers.outputSuccess(res, {
-      stream_url: startStreamReq.data.flv,
+      stream_url: startStreamReq.data.flvUrl,
       session_id: startStreamReq.data.sessionId,
     })
   }
@@ -195,4 +195,121 @@ export class OperatorTrackingService {
       emergency_alarm: sendReq.data.emergencyAlarm || false,
     })
   }
+
+  //========**************MEDIA SECTION***********=========================/
+  static async StartPastMedia({ body, id: vehicleID, res, req, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+    let startTime = helpers.getInputValueString(body, "start_time")
+    let endTime = helpers.getInputValueString(body, "end_time")
+    let timezone = helpers.getInputValueString(body, "timezone")
+    let channelID = helpers.getInputValueString(body, "channel_id")
+    let recordDate = helpers.getInputValueString(body, "record_date")
+    let mediaType = helpers.getInputValueString(body, "media_type")
+
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+
+    if (!recordDate || !startTime || !endTime) {
+      return helpers.outputError(res, null, "Kindly select the date and time range for the media data you want to retrieve")
+    }
+
+    if (channelID) {
+      //validate channel ID
+      if (!helpers.isNumber({ input: channelID, type: "int", min: 1, max: 4 })) {
+        return helpers.outputError(res, null, "Invalid channel ID. Must be a number between 1 and 4")
+      }
+    }
+
+    //chek end date if submitted
+    //if start date is not submitted
+    if (helpers.isDateFormat(recordDate)) {
+      return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
+    }
+
+    //validate start and end time
+    if (!helpers.isTimeFormat(startTime)) {
+      return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
+    }
+
+    if (!helpers.isTimeFormat(endTime)) {
+      return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
+    }
+
+    //if there's no timezone, return
+    if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
+
+    //valida the timezone
+    if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+
+    let getUTCStart = helpers.convertDateTimeZone({
+      dateString: `${recordDate}T${startTime}:00`,
+      fromTimeZone: timezone, toTimeZone: "utc"
+    })
+    let getUTCEnd = helpers.convertDateTimeZone({
+      dateString: `${recordDate}T${endTime}:59`,
+      fromTimeZone: timezone, toTimeZone: "utc"
+    })
+
+    //if the start time is greater than end time
+    if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
+      return helpers.outputError(res, null, 'Start time can not be greater than end time');
+    }
+
+    //check if the device number belongs to the operator
+    let optVehicle = await helpers.checkVehicleBelongsToOperator(vehicleID, optID)
+    //if there's an error, return it
+    if (!optVehicle || !optVehicle.device_id || !optVehicle.device_id._id) {
+      return helpers.outputError(res, null, "Unable to validate the selected vehicle");
+    }
+
+    let mediaQuery = {
+      deviceId: optVehicle.device_id.device_number,
+      channelId: channelID ? parseInt(channelID) : undefined,
+      startTime: `${getUTCStart.date} ${getUTCStart.time}`,
+      endTime: `${getUTCEnd.date} ${getUTCEnd.time}`,
+      mediaType: 0
+    }
+
+    let reqMedia: SendDBQuery = await helpers.sendRequestToGateway({
+      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/query${helpers.getRequestParams(mediaQuery)}`,
+      method: "POST"
+    })
+
+    //if there's no result or result doesn't have a stream URL, return an error
+    if (!reqMedia || !reqMedia.data || !reqMedia.data.deviceId || !reqMedia.data.commandId) {
+      //log something
+      // return helpers.outputError(res, null, "Failed to get media list. Please try again")
+    }
+
+    return helpers.outputSuccess(res)
+
+  }
+
+  static async GetPastMedia({ id: vehicleID, res, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+
+    //check if the device number belongs to the operator
+    let optVehicle = await helpers.checkVehicleBelongsToOperator(vehicleID, optID)
+    //if there's an error, return it
+    if (!optVehicle || !optVehicle.device_id || !optVehicle.device_id._id) {
+      return helpers.outputError(res, null, "Unable to validate the selected vehicle");
+    }
+
+    //get the command ID from the request query
+    let reqMedia: SendDBQuery = await helpers.sendRequestToGateway({
+      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files`,
+      method: "POST"
+    })
+
+    //if there's result coming
+    if (reqMedia && reqMedia.data && reqMedia.data.files && reqMedia.data.files.length > 0) {
+      return helpers.outputSuccess(res, reqMedia.data.files);
+    }
+
+    return helpers.outputSuccess(res, [])
+  }
+
+
 }
