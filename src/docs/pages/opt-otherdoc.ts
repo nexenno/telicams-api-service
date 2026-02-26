@@ -178,7 +178,7 @@ optOtherDoc.delete_collection = {
   sidebar: "Delete Collection",
   comment: "",
   method: "DELETE",
-  url: "http(s)://base-url/operators/assets/collection-assignments/{{collection_id}}",
+  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -232,7 +232,7 @@ optOtherDoc.assign_collection_to_vehicle = {
   sidebar: "Assign vehicle Collection",
   comment: "",
   method: "PUT",
-  url: "http(s)://base-url/operators/assets/collection-lists/{{collection_id}}",
+  url: "http(s)://base-url/operators/assets/collection-assignments/{{collection_id}}",
   doc_header: {
     field: "Field",
     type: "Type",
