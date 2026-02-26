@@ -37,6 +37,14 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
     })
   }
 
+  async vehicleShutdowns() {
+    if (this.method !== "post") return helpers.outputError(this.res, null, "Invalid request method")
+    return OperatorAssetService.ShutDownOrActivateEngine({
+      customData: this._custom_data, body: this.body,
+      req: this.req, res: this.res, query: this.query,
+    })
+  }
+
   async collectionLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return this.__run({
@@ -69,7 +77,7 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
   }
 
   async locationLists(id: string | undefined) {
-    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    if (!id || helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     if (this.method !== "get") return helpers.outputError(this.res, 405)
     return OperatorAssetService.GetLocationData({
       customData: this._custom_data, body: this.body,

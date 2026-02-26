@@ -7,15 +7,14 @@ import {
 } from "../typings/general"
 // import { AdminLogModel, OperatorLogModel } from "../models/activity-logs"
 import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
-import { DashcamDeviceModel } from "../models/device-lists"
+import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists"
 import { DashcamActivityLogModel } from "../models/device-data"
 import { OperatorLogModel } from "../models/activity-logs"
 import { fileConfig } from "./file-config";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
+import { GlobalConnectedDevices } from "./var-param";
+import { DatabaseTableList } from "./var-config";
 
-export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
-//@ts-ignore
-export const GlobalTimeZones: string[] = Intl.supportedValuesOf('timeZone')
 
 export default class helpers {
   constructor() { }
@@ -336,15 +335,33 @@ export default class helpers {
     if (GlobalConnectedDevices.has(deviceNumber)) {
       return GlobalConnectedDevices.get(deviceNumber)
     }
-    //fetch the data from the database and store it in the map
-    let deviceData: SendDBQuery = await DashcamDeviceModel.findOne({ device_number: deviceNumber },
-      { operator_id: 1, vehicle_id: 1, _id: 1 }).lean().catch(e => ({ error: e }))
+    //check if the device is prepared on the system already
+    let getDevice: SendDBQuery = await DashcamDeviceModel.aggregate([
+      { $match: { device_number: deviceNumber, operator_id: 1 } },
+      {
+        $lookup: {
+          from: DatabaseTableList.vehicle_lists,
+          let: { deviceID: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$device_id", "$$deviceID"] } } },
+            { $project: { vehicle_status: 1, operator_id: 1 } },
+          ],
+          as: "vehicle_data"
+        }
+      },
+      { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
+    ]).catch((e) => ({ error: e }));
+
+    //if there's an error, return it
+    if (getDevice && getDevice.error) return null
+
+    let deviceData = getDevice[0] as (DashcamDeviceTypes & { vehicle_data?: { _id: number, operator_id: string } })
 
     //if there's data and no error, store it in the map and return the data
-    if (deviceData && !deviceData.error) {
+    if (deviceData && deviceData._id && deviceData.operator_id && deviceData.vehicle_data && deviceData.vehicle_data._id) {
       let sendData = {
         operator_id: deviceData.operator_id ? String(deviceData.operator_id) : undefined,
-        vehicle_id: deviceData.vehicle_id ? String(deviceData.vehicle_id) : undefined,
+        vehicle_id: (deviceData.vehicle_data && deviceData.vehicle_data._id) ? String(deviceData.vehicle_data._id) : undefined,
         device_id: deviceData._id ? String(deviceData._id) : undefined
       }
       GlobalConnectedDevices.set(deviceNumber, sendData)

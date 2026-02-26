@@ -1,45 +1,37 @@
-import helpers, { GlobalConnectedDevices } from "../assets/helpers";
-import { TripProcessor } from "../assets/helputil";
+import helpers from "../assets/helpers";
+import helpProcessor from "../assets/helpproces";
+import { DatabaseTableList } from "../assets/var-config";
+import { GlobalConnectedDevices } from "../assets/var-param";
 import { DashcamAlarmModel, DashcamLocationModel, LocationSummaryModel } from "../models/device-data";
 import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
+import { OptVehicleListModel } from "../models/opt-vehlists";
 import { IncomingLocationPacket } from "../typings/gateway";
 import { PrivateMethodProps, SendDBQuery } from "../typings/general";
 
 export class GatewayHookService {
 
   static async RegisterNewDevice({ res, body }: PrivateMethodProps) {
-    let deviceID = body.deviceId || ""
-    let manufacturer = body.manufacturer || ""
-    let model = body.model || ""
-    let provinceID = body.provinceId || ""
-    let cityID = body.cityId || ""
-    let licensePlate = body.licensePlate || ""
+    let deviceID = String(body.deviceId || "").trim()
+    let provinceID = String(body.provinceId || "").trim()
+    let cityID = String(body.cityId || "").trim()
+    let licensePlate = String(body.licensePlate || "").trim()
+
+    // TODO: 1. Add a bounce check to prevent multiple registration attempts
+    //  in a short time frame for the same device ID, which could 
+    // indicate an issue with the device or gateway.
 
     //validate the inputs
     if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-    if (!model) return helpers.outputError(res, null, "Model is required")
-    if (!manufacturer) return helpers.outputError(res, null, "Manufacturer is required")
-    // if (!provinceID) return helpers.outputError(res, null, "Province ID is required")
-    // if (!cityID) return helpers.outputError(res, null, "City ID is required")
-
-    manufacturer = String(manufacturer).trim()
-    model = String(model).trim()
-    deviceID = String(deviceID).trim()
-    provinceID = String(provinceID).trim()
-    cityID = String(cityID).trim()
-    licensePlate = String(licensePlate).trim()
-
     //register the device in the database
     if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
       return helpers.outputError(res, null, "Device ID must be a number between 10 and 20 digits")
     }
-    //if there's no manufacturer, model, province ID, city ID or license plate, return an error
-    if (manufacturer.length < 2 || manufacturer.length > 50) {
-      return helpers.outputError(res, null, "Manufacturer must be between 2 and 50 characters")
-    }
 
-    if (model.length < 2 || model.length > 50) {
-      return helpers.outputError(res, null, "Model must be between 2 and 50 characters")
+    //check if device exists in online device state
+    if (GlobalConnectedDevices.has(deviceID)) {
+      //stop timer for clearing offline device if it exists
+      helpProcessor.stopOfflineDeviceDisconnectTimer(deviceID)
+      return res.status(200).json({ approved: true })
     }
 
     if (provinceID) {
@@ -61,9 +53,21 @@ export class GatewayHookService {
     }
 
     //check if the device is prepared on the system already
-    let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
-      device_number: deviceID
-    }).lean().catch((e) => ({ error: e }));
+    let getDevice: SendDBQuery = await DashcamDeviceModel.aggregate([
+      { $match: { device_number: deviceID } },
+      {
+        $lookup: {
+          from: DatabaseTableList.vehicle_lists,
+          let: { deviceID: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$device_id", "$$deviceID"] } } },
+            { $project: { vehicle_status: 1, operator_id: 1 } },
+          ],
+          as: "vehicle_data"
+        }
+      },
+      { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
+    ]).catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (getDevice && getDevice.error) {
@@ -71,43 +75,28 @@ export class GatewayHookService {
       return helpers.outputError(res, 500)
     }
 
+    getDevice = getDevice[0] as (DashcamDeviceTypes & { vehicle_data?: { vehicle_status: number, operator_id: string } })
+
     //if the device is not found
-    if (!getDevice) return helpers.outputError(res, 404, "Device not found.")
+    if (!getDevice || !getDevice.vehicle_data) return helpers.outputError(res, 404, "Device not found.")
 
     //if the device is not active for registration, return an error
-    if (getDevice.active_status !== 1 || !getDevice.operator_id) {
+    if (getDevice.active_status !== 1 || !getDevice.operator_id || getDevice.vehicle_data.vehicle_status !== 1) {
       return helpers.outputError(res, null, "Device is not active for registration")
     }
 
+    res.status(200).json({ approved: true })
+
     //if the gateway status already registered
-    if (getDevice.gateway_status === 1) return res.status(200).json({ approved: true })
+    if (getDevice.gateway_status === 1) return
 
     //update the device with the new information and set the gateway status to registered
-    let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
+    await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
       $set: {
-        device_oem: manufacturer, device_model: model, province_id: provinceID,
-        city_id: cityID, license_plate: licensePlate, gateway_status: 1,
+        province_id: provinceID, city_id: cityID,
+        license_plate: licensePlate, gateway_status: 1
       }
-    }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
-
-    //if there's an error, return it
-    if (updateDevice && updateDevice.error) {
-      console.log("Error updating device for registration ", updateDevice.error)
-      return helpers.outputError(res, 500)
-    }
-    //if the device is not found after update, return an error
-    if (!updateDevice) return helpers.outputError(res, 404, "Device not found after update.")
-
-    //log the registration activity
-    await helpers.logDashcamActivity({
-      device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
-      activity_type: "DEVICE_REGISTRATION", vehicle_id: updateDevice.vehicle_id,
-      activity_detail: { deviceID, manufacturer, model, provinceID, cityID, licensePlate },
-      message: `Device ${deviceID} registered successfully.`
-    })
-
-    //return success response
-    return res.status(200).json({ approved: true })
+    }).catch((e) => ({ error: e }))
   }
 
   static async HandleEventDeviceConnected({ res, body }: PrivateMethodProps) {
@@ -124,57 +113,33 @@ export class GatewayHookService {
     //   "timestamp": "2026-02-21T10:30:00"
     // }
     let deviceID = String(body.deviceId || "").trim()
-    let manufacturer = String(body.manufacturer || "").trim()
-    let model = String(body.model || "").trim()
-    let reconnectCount = body.reconnectCount
-    let connectedAt = body.connectedAt
 
     //validate the inputs
     if (!deviceID) return helpers.outputError(res, null, "Device ID is required")
-    if (!manufacturer) return helpers.outputError(res, null, "Manufacturer is required")
-    if (!model) return helpers.outputError(res, null, "Model is required")
 
     //validate the device ID
     if (!helpers.isNumber({ input: deviceID, type: "int", minLength: 10, maxLength: 20 })) {
       return helpers.outputError(res, null, "Device ID must be a number between 10 and 20 digits")
     }
-    //validate the manufacturer and model
-    if (manufacturer.length < 2 || manufacturer.length > 50) {
-      return helpers.outputError(res, null, "Manufacturer must be between 2 and 50 characters")
+
+    //if still connected
+    if (GlobalConnectedDevices.has(deviceID)) {
+      //stop timer for clearing offline device if it exists
+      helpProcessor.stopOfflineDeviceDisconnectTimer(deviceID)
+      return res.status(200).json({ success: true })
     }
-    if (model.length < 2 || model.length > 50) {
-      return helpers.outputError(res, null, "Model must be between 2 and 50 characters")
-    }
-    //reply the gateway
     res.status(200).json({ success: true })
 
-    //update the device online status to true
-    let updateDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOneAndUpdate({
-      device_number: deviceID
-    }, { $set: { gateway_status: 1 } }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
+    //get the device from the database
+    let getDev = await helpers.getConnectedDeviceData(deviceID)
 
-    //if there's an error, return it
-    if (updateDevice && updateDevice.error) {
-      console.log("Error updating device for connection event ", updateDevice.error)
-      return
+    //if there's result coming
+    if (getDev && getDev.device_id && getDev.vehicle_id) {
+      await OptVehicleListModel.findByIdAndUpdate(getDev.vehicle_id, {
+        $set: { online_status: 1 }
+      }).catch(e => ({ error: e }))
     }
-    //if the device is not found after update, return an error
-    if (!updateDevice) return
 
-    //set global connected 
-    GlobalConnectedDevices.set(deviceID, {
-      device_id: updateDevice._id ? String(updateDevice._id) : undefined,
-      operator_id: updateDevice.operator_id ? String(updateDevice.operator_id) : undefined,
-      vehicle_id: updateDevice.vehicle_id ? String(updateDevice.vehicle_id) : undefined
-    })
-
-    // log the connection event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
-      activity_type: "DEVICE_CONNECTED", vehicle_id: updateDevice.vehicle_id,
-      activity_detail: { deviceID, manufacturer, model, reconnectCount, connectedAt },
-      message: `Device ${deviceID} connected successfully.`
-    })
   }
 
   static async HandleEventDeviceDisconnected({ res, body }: PrivateMethodProps) {
@@ -201,29 +166,9 @@ export class GatewayHookService {
     //reply the gateway
     res.status(200).json({ success: true })
 
-    //update the device online status to false
-    let updateDevice: SendDBQuery = await DashcamDeviceModel.findOneAndUpdate({ device_number: deviceID }, {
-      $set: { gateway_status: 0 }
-    }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
-
-    //if there's an error, return it
-    if (updateDevice && updateDevice.error) {
-      console.log("Error updating device for disconnection event ", updateDevice.error)
-      return
-    }
-    //if the device is not found after update, return an error
-    if (!updateDevice) return
-
-    //remove from global connected
-    GlobalConnectedDevices.delete(deviceID)
-
-    // log the disconnection event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(updateDevice._id), operator_id: updateDevice.operator_id,
-      activity_type: "DEVICE_DISCONNECTED", activity_detail: {},
-      vehicle_id: updateDevice.vehicle_id,
-      message: `Device ${deviceID} disconnected successfully.`
-    })
+    //call the disconnect processor to handle the device disconnection after a 
+    // certain time frame to allow for temporary network issues
+    helpProcessor.startOfflineDeviceOnDisconnect(deviceID)
   }
 
   static async HandleEventDeviceAlarmTriggered({ res, body }: PrivateMethodProps) {
@@ -290,13 +235,6 @@ export class GatewayHookService {
       console.log("Error logging alarm event ", logData.error)
       return
     }
-    // log the alarm event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: "ALARM_TRIGGERED", vehicle_id: deviceData.vehicle_id,
-      activity_detail: { alarmType, severity, latitude, longitude, speed, eventId },
-      message: `Alarm ${alarmType} triggered on device ${deviceID} with severity ${severity}.`
-    })
   }
 
   static async HandleEventDeviceAlarmCleared({ res, body }: PrivateMethodProps) {
@@ -354,59 +292,6 @@ export class GatewayHookService {
       return
     }
 
-    // log the alarm cleared event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: "ALARM_CLEARED", vehicle_id: deviceData.vehicle_id,
-      activity_detail: { alarmType, eventId },
-      message: `Alarm ${alarmType} cleared on device ${deviceID}.`
-    })
-
-  }
-
-  static async HandleDeviceStreamStartedAndStopped({ res, body }: PrivateMethodProps) {
-    let deviceID = body.deviceId
-    //     {
-    //   "eventType": "STREAM_STARTED",
-    //   "deviceId": "628072951915",
-    //   "sessionId": "uuid",
-    //   "channelId": 1,
-    //   "streamType": "MAIN",
-    //   "dataType": "AUDIO_VIDEO",
-    //   "startedAt": "2026-02-21T10:30:00",
-    //   "status": "PENDING",
-    //   "timestamp": "2026-02-21T10:30:00"
-    //     }
-    //     {
-    //   "eventType": "STREAM_STOPPED",
-    //   "deviceId": "628072951915",
-    //   "sessionId": "uuid",
-    //   "channelId": 1,
-    //   "streamType": "MAIN",
-    //   "dataType": "AUDIO_VIDEO",
-    //   "startedAt": "2026-02-21T10:28:00",
-    //   "durationSeconds": 142,
-    //   "bytesReceived": 2097152,
-    //   "framesReceived": 3540,
-    //   "timestamp": "2026-02-21T10:30:22"
-    //     }
-    //reply the gateway
-    res.status(200).json({ success: true })
-
-    //check if the device is online
-    let deviceData = await helpers.getConnectedDeviceData(deviceID)
-    //if device data is not found, return
-    if (!deviceData || !deviceData.device_id) {
-      // console.log("Connected device data not found for device ID ", deviceID)
-      return
-    }
-
-    //log the stream event in the database for analytics and monitoring
-    helpers.logDashcamActivity({
-      device_id: String(deviceData.device_id), operator_id: deviceData.operator_id,
-      activity_type: body.eventType, activity_detail: body, vehicle_id: deviceData.vehicle_id,
-      message: `Stream event ${body.eventType} received for device ${deviceID}.`
-    })
   }
 
   static async HandleDeviceLocationUpdate({ res, body }: PrivateMethodProps) {
@@ -427,7 +312,7 @@ export class GatewayHookService {
     //   "mileage": 12500,
     //   "timestamp": "2026-02-21T10:30:01"
     // }
-    let deviceID = body.deviceId
+    let deviceID = String(body.deviceId || "").trim()
     let latitude = body.latitude
     let longitude = body.longitude
     let altitude = body.altitude
@@ -486,9 +371,7 @@ export class GatewayHookService {
       return
     }
 
-    const processor = new TripProcessor()
-
-    const summary = await processor.processLocation(body as IncomingLocationPacket)
+    const summary = await helpProcessor.processLocation(body as IncomingLocationPacket)
 
     //if there's data, log it
     if (summary && summary.start_time) {

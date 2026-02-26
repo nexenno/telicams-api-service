@@ -378,6 +378,39 @@ optAssetDoc.delete_device = {
    }`
 }
 
+optAssetDoc.engine_shutdown = {
+  title: "Shutdown or Activate Vehicle Enginw",
+  header: "Header-> Authorization: Bearer token,",
+  sidebar: "Shutdown/Activate Engine",
+  comment: "",
+  method: "PUT",
+  url: "http(s)://base-url/operators/assets/vehicle-shutdowns",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "vehicle_id",
+      type: "String",
+      status: "required",
+      description: "",
+    },
+    {
+      field: "status",
+      type: "String",
+      status: "required",
+      description: "1=activate | 2=shutdown",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
 
 optAssetDoc.update_alarm_status = {
   title: "Update Alarm",

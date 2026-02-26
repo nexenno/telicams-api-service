@@ -1,5 +1,6 @@
-import helpers, { GlobalTimeZones } from "../assets/helpers";
+import helpers from "../assets/helpers";
 import { serviceEndpoint } from "../assets/var-config";
+import { GlobalTimeZones } from "../assets/var-param";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
 import { ObjectPayload, PrivateMethodProps, SendDBQuery } from "../typings/general";
 

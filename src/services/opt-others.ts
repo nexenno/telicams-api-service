@@ -1,5 +1,6 @@
-import helpers, { GlobalTimeZones } from "../assets/helpers"
+import helpers from "../assets/helpers"
 import { DatabaseTableList } from "../assets/var-config"
+import { GlobalTimeZones } from "../assets/var-param"
 import { OperatorLogModel } from "../models/activity-logs"
 import { mongoose } from "../models/dbConnector"
 import { CollectionListModel } from "../models/device-lists"

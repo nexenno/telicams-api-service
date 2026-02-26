@@ -57,10 +57,7 @@ export default class OperatorAccountController extends SimpleNodeJsController {
         })
       case "STREAM_STARTED":
       case "STREAM_STOPPED":
-        return GatewayHookService.HandleDeviceStreamStartedAndStopped({
-          req: this.req, res: this.res, query: this.req.query,
-          body: this.req.body, customData: {} as any
-        })
+        return this.res.status(200).json({})
       default:
         return helpers.outputError(this.res, null, "Unknown event type")
     }

@@ -1,4 +1,4 @@
-import helpers, { GlobalTimeZones } from "../assets/helpers";
+import helpers from "../assets/helpers";
 import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from "../typings/general";
 import { mongoose } from "../models/dbConnector";
 import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
@@ -6,6 +6,7 @@ import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists
 import { DatabaseTableList } from "../assets/var-config";
 import { DashcamAlarmModel, DashcamAlarmTypes, DashcamLocationModel, LocationSummaryModel } from "../models/device-data";
 import { UserOperatorModel } from "../models/user-operators";
+import { GlobalTimeZones } from "../assets/var-param";
 
 export class OperatorAssetService {
 
@@ -48,12 +49,29 @@ export class OperatorAssetService {
 
     let pipLine: PipelineQuery = [
       { $match: qBuilder },
-      { $project: { created_by: 0, operator_id: 0, } },
+      { $project: { created_by: 0, gateway_status: 0, operator_id: 0, } },
       { $sort: { _id: -1 } },
       { $skip: getPage.data.page },
       { $limit: getPage.data.item_per_page },
-      { $addFields: { device_id: "$_id" } },
-      { $unset: ["__v", "_id", "operator_id"] },
+      {
+        $lookup: {
+          from: DatabaseTableList.vehicle_lists,
+          let: { deviceID: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$device_id", "$$deviceID"] } } },
+            { $project: { plate_number: 1, online_status: 1, } }
+          ],
+          as: "vehicle_data"
+        }
+      },
+      { $unwind: { path: "$vehicle_data", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          online_status: { $ifNull: ["$vehicle_data.online_status", 0] },
+          device_id: "$_id"
+        }
+      },
+      { $unset: ["vehicle_data", "_id", "__v", "operator_id"] }
     ]
 
     if (component) {
@@ -109,7 +127,9 @@ export class OperatorAssetService {
     if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle id")
 
     //get the vehicle
-    let getOpt: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({ _id: vehicleID, operator_id: optID }).lean().catch(e => ({ error: e }))
+    let getOpt: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+      _id: vehicleID, operator_id: optID
+    }).lean().catch(e => ({ error: e }))
 
     //check for error
     if (getOpt && getOpt.error) {
@@ -128,7 +148,9 @@ export class OperatorAssetService {
     }
 
     //get the device data
-    let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({ _id: id, operator_id: optID }).lean().catch(e => ({ error: e }))
+    let getDevice: SendDBQuery<DashcamDeviceTypes> = await DashcamDeviceModel.findOne({
+      _id: id, operator_id: optID
+    }).lean().catch(e => ({ error: e }))
 
     //check for error
     if (getDevice && getDevice.error) {
@@ -138,25 +160,23 @@ export class OperatorAssetService {
 
     if (!getDevice) return helpers.outputError(res, null, "Device not found")
 
-    //check if the device is already assigned to another operator
-    if (getDevice.vehicle_id) return helpers.outputError(res, null, "This device is already assigned to vehicle")
+    //if the device is not active
+    if (getDevice.active_status !== 1) return helpers.outputError(res, null, "Device is not active for assignment")
 
     //update the device with the vehicle id and assign status
-    let Assignveh: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
-      $set: { vehicle_id: vehicleID, assign_status: 2 }
+    let Assignveh: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(vehicleID, {
+      $set: { device_id: id, device_assigned: 1 }
     }, { lean: true, returnDocument: "after" }).catch((e: object) => ({ error: e }));
 
     if (Assignveh && Assignveh.error) {
-      console.log("Error assigning device to operator", Assignveh.error)
+      console.log("Error assigning vehicle to device operator", Assignveh.error)
       return helpers.outputError(res, 500)
     }
 
     //if the query does not execute
     if (!Assignveh) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
 
-    //add the device id to the vehicle
-    await OptVehicleListModel.findByIdAndUpdate(vehicleID, { $set: { device_id: id, device_assigned: 1 } }).catch(e => { })
-
+    //log activity
     helpers.logOperatorActivity({
       auth_id: userData.auth_id, operator_id: optID as string, operation: "assign-device",
       data: { id: vehicleID, plate_number: getOpt.plate_number },
@@ -179,7 +199,7 @@ export class OperatorAssetService {
       return helpers.outputError(res, 500)
     }
 
-    if (!getDevice) return helpers.outputError(res, null, "Device not found")
+    if (!getDevice) return helpers.outputError(res, null, "Device not found or not assigned to any vehicle")
 
     //remove the device id from the vehicle and change assign status
     let unAssign: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(getDevice._id, {
@@ -194,10 +214,7 @@ export class OperatorAssetService {
     //if the query does not execute
     if (!unAssign) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
 
-    //remove the vehicle id from the device
-    await DashcamDeviceModel.findOneAndUpdate({ operator_id: optID, _id: id },
-      { $unset: { vehicle_id: 1 }, $set: { assign_status: 1 } }).catch(e => { })
-
+    //log activity
     helpers.logOperatorActivity({
       auth_id: userData.auth_id, operator_id: optID as string, operation: "unassign-device",
       data: { id: getDevice._id, plate_number: getDevice.plate_number },
@@ -773,7 +790,7 @@ export class OperatorAssetService {
               $group: {
                 _id: null,
                 total_count: { $sum: 1 },
-                total_active: { $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] } },
+                total_active: { $sum: { $cond: [{ $eq: ["$online_status", 1] }, 1, 0] } },
                 total_suspended: { $sum: { $cond: [{ $eq: ["$status", 2] }, 1, 0] } },
                 total_with_device: { $sum: { $cond: [{ $ifNull: ["$device_assigned", 1] }, 1, 0] } },
               }
@@ -1022,6 +1039,25 @@ export class OperatorAssetService {
     }
 
     if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Action completed successfully" });
+  }
+
+  static async ShutDownOrActivateEngine({ body, res, customData: userData }: PrivateMethodProps) {
+    let status = helpers.getInputValueString(body, "status")
+    let id = helpers.getInputValueString(body, "vehicle_id")
+
+    if (!id) return helpers.outputError(res, null, "Vehicle ID is required")
+    if (helpers.isInvalidID(id)) return helpers.outputError(res, null, "Invalid vehicle ID")
+
+    //if there's no status
+    if (!status) return helpers.outputError(res, null, "Status is required")
+    if (!["1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status value")
+
+    //update the database
+    await OptVehicleListModel.findByIdAndUpdate(id, {
+      $set: { engine_shutdown: parseInt(status) }
+    }).catch(e => ({ error: e }))
+
+    return helpers.outputSuccess(res)
   }
 
   //========**************ALARM SECTION***********=========================/
