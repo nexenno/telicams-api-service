@@ -1044,6 +1044,7 @@ export class OperatorAssetService {
   static async ShutDownOrActivateEngine({ body, res, customData: userData }: PrivateMethodProps) {
     let status = helpers.getInputValueString(body, "status")
     let id = helpers.getInputValueString(body, "vehicle_id")
+    let reason = helpers.getInputValueString(body, "reason")
 
     if (!id) return helpers.outputError(res, null, "Vehicle ID is required")
     if (helpers.isInvalidID(id)) return helpers.outputError(res, null, "Invalid vehicle ID")
@@ -1051,6 +1052,8 @@ export class OperatorAssetService {
     //if there's no status
     if (!status) return helpers.outputError(res, null, "Status is required")
     if (!["1", "2"].includes(status)) return helpers.outputError(res, null, "Invalid status value")
+
+    if (!reason) return helpers.outputError(res, null, "Reason is required for this action")
 
     //update the database
     await OptVehicleListModel.findByIdAndUpdate(id, {
