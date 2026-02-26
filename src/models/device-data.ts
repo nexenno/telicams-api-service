@@ -30,10 +30,12 @@ const DashcamAlarms = new mongoose.Schema({
   },
   alarm_type: {
     type: String,
+    index: true,
     maxlength: 50,
   },
   severity: {
     type: String,
+    index: true,
   },
   latitude: {
     type: Number,
