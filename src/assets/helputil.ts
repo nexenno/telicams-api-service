@@ -3,6 +3,7 @@ import { IncomingLocationPacket, TripStateInMemory, TripSummaryOut } from "../ty
 const SPEED_LIMIT = 80
 const CRITICAL_ALARMS = [0, 8, 9]
 const MILD_ALARMS = [1, 2, 3]
+const deviceTrips: Map<string, TripStateInMemory> = new Map()
 
 function haversine(
   lat1: number,
@@ -32,8 +33,6 @@ function hasAlarm(flag: number, bit: number): boolean {
 
 export class TripProcessor {
 
-  private deviceTrips: Map<string, TripStateInMemory> = new Map()
-
   async processLocation(packet: IncomingLocationPacket): Promise<TripSummaryOut | null> {
 
     const {
@@ -48,12 +47,12 @@ export class TripProcessor {
 
     const now = new Date(gpsTime).getTime()
 
-    let trip = this.deviceTrips.get(deviceId)
+    let trip = deviceTrips.get(deviceId)
 
     // START TRIP
     if (!trip && accOn) {
 
-      this.deviceTrips.set(deviceId, {
+      deviceTrips.set(deviceId, {
         deviceId,
         tripStart: gpsTime,
 
@@ -159,7 +158,7 @@ export class TripProcessor {
         critical_alarms: trip.criticalAlarms
       }
 
-      this.deviceTrips.delete(deviceId)
+      deviceTrips.delete(deviceId)
 
       return summary
     }

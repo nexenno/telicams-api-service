@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #000;
+      color: #ccc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Setup form ── */
+    #setup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 16px;
+      padding: 32px;
+    }
+
+    #setup h2 {
+      color: #fff;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    #setup .row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 460px;
+    }
+
+    #setup input {
+      flex: 1;
+      padding: 10px 12px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    #setup input:focus {
+      outline: none;
+      border-color: #555;
+    }
+
+    #setup input::placeholder {
+      color: #555;
+    }
+
+    #setup button {
+      padding: 10px 22px;
+      background: #1a6fc4;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #setup button:hover {
+      background: #1e82e6;
+    }
+
+    #setup .hint {
+      font-size: 12px;
+      color: #555;
+      text-align: center;
+      max-width: 460px;
+      line-height: 1.6;
+    }
+
+    /* ── Video grid ── */
+    #grid {
+      display: none;
+      flex: 1;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    #grid.one {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    #grid.two {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    #grid.three {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+    }
+
+    #grid.four {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+    }
+
+    #grid.five,
+    #grid.six {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+    }
+
+    .tile {
+      background: #0a0a0a;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Make the single tile fill the screen height */
+    #grid.one .tile {
+      height: calc(100vh - 8px);
+    }
+
+    .tile video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .tile-label {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 7px;
+      border-radius: 10px;
+      pointer-events: none;
+    }
+
+    .tile-status {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444;
+    }
+
+    .tile-status.connecting {
+      background: #c8900a;
+      animation: blink 1s infinite;
+    }
+
+    .tile-status.live {
+      background: #2ea043;
+    }
+
+    .tile-status.error {
+      background: #cf222e;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
+
+    .tile-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #666;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .tile-overlay.hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Setup panel (shown before streams start) -->
+  <div id="setup">
+    <h2>Stream Viewer</h2>
+
+    <div class="row">
+      <input id="inp-key" type="password" placeholder="API key" autocomplete="off">
+    </div>
+    <div class="row">
+      <input id="inp-device" type="text" placeholder="Device ID" autocomplete="off">
+      <input id="inp-channels" type="text" placeholder="Channels  e.g. 1,2" style="max-width:160px">
+    </div>
+    <div class="row" style="justify-content:center">
+      <button onclick="startAll()">Watch</button>
+    </div>
+    <p class="hint">
+      You can also auto-start via URL params:<br>
+      <code>?key=API_KEY&amp;deviceId=DEVICE_ID&amp;channels=1,2</code>
+    </p>
+  </div>
+
+  <!-- Video grid (shown once streams are starting) -->
+  <div id="grid"></div>
+
+  <script>
+    const API_BASE = "http://178.62.0.219:8080"
+    // const API_BASE = window.location.protocol === 'file:' ?
+    //   'http://localhost:8080' :
+    //   window.location.origin;
+
+    const players = {};
+
+    // Stored so the error handler can re-request a token when it gets a 401
+    let currentApiKey = '';
+    let currentDeviceId = '';
+
+    // ── Auto-start from URL params ──────────────────────────────────────────────
+    (function autoStart() {
+      const p = new URLSearchParams(window.location.search);
+      const key = p.get('key');
+      const deviceId = p.get('deviceId');
+      const channels = p.get('channels');
+      if (key && deviceId && channels) {
+        document.getElementById('inp-key').value = key;
+        document.getElementById('inp-device').value = deviceId;
+        document.getElementById('inp-channels').value = channels;
+        startAll();
+      }
+    })();
+
+    // ── Start all channels ───────────────────────────────────────────────────────
+    async function startAll() {
+      const apiKey = document.getElementById('inp-key').value.trim();
+      const deviceId = document.getElementById('inp-device').value.trim();
+      currentApiKey = apiKey;
+      currentDeviceId = deviceId;
+      const channelsRaw = document.getElementById('inp-channels').value.trim();
+
+      if (!apiKey) {
+        alert('API key is required');
+        return;
+      }
+      if (!deviceId) {
+        alert('Device ID is required');
+        return;
+      }
+      if (!channelsRaw) {
+        alert('At least one channel is required');
+        return;
+      }
+
+      const channels = channelsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      if (channels.length === 0) {
+        alert('No valid channels');
+        return;
+      }
+
+      // Switch to grid view
+      document.getElementById('setup').style.display = 'none';
+      buildGrid(deviceId, channels);
+
+      for (const ch of channels) {
+        await startChannel(apiKey, deviceId, ch);
+      }
+    }
+
+    // ── Build the video grid ─────────────────────────────────────────────────────
+    function buildGrid(deviceId, channels) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      const count = channels.length;
+      const cls = ['one', 'two', 'three', 'four', 'five', 'six'][Math.min(count, 6) - 1] || 'six';
+      grid.className = cls;
+
+      for (const ch of channels) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.id = `tile-${ch}`;
+        tile.innerHTML = `
+        <video id="video-${ch}" muted playsinline></video>
+        <span class="tile-label">Ch ${ch}</span>
+        <span class="tile-status connecting" id="status-${ch}"></span>
+        <div class="tile-overlay" id="overlay-${ch}">Requesting stream…</div>
+      `;
+        grid.appendChild(tile);
+      }
+    }
+
+    // ── Start a single channel ───────────────────────────────────────────────────
+    async function startChannel(apiKey, deviceId, channelId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/streams/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            deviceId,
+            channelId
+          })
+        });
+
+        if (!res.ok) {
+          setStatus(channelId, 'error', `HTTP ${res.status}`);
+          return;
+        }
+
+        const data = await res.json();
+        // Use the tokenised FLV URL from the response; fall back to plain URL if
+        // token-auth is disabled (live.token-auth.enabled=false)
+        const flvUrl = data.flvUrl || `${API_BASE}/live/${deviceId}/${channelId}.flv`;
+
+        setOverlay(channelId, 'Connecting…');
+
+        // Small delay to let the device start sending
+        setTimeout(() => connectFlv(flvUrl, channelId), 1500);
+
+      } catch (err) {
+        setStatus(channelId, 'error', 'Request failed');
+      }
+    }
+
+    // ── Connect FLV player ───────────────────────────────────────────────────────
+    function connectFlv(url, channelId) {
+      if (!mpegts.isSupported()) {
+        setStatus(channelId, 'error', 'mpegts.js not supported in this browser');
+        return;
+      }
+
+      if (players[channelId]) {
+        players[channelId].destroy();
+        delete players[channelId];
+      }
+
+      const video = document.getElementById(`video-${channelId}`);
+
+      // Clear any prior MediaError from the video element before attaching MSE.
+      // Without this, appendBuffer throws immediately on reconnect because
+      // HTMLMediaElement.error is still non-null from the previous session.
+      video.src = '';
+      video.removeAttribute('src');
+      video.load();
+
+      const player = mpegts.createPlayer({
+        type: 'flv',
+        url,
+        isLive: true,
+      }, {
+        enableWorker: true,
+        liveBufferLatencyChasing: true,
+        liveBufferLatencyMaxLatency: 3.0,
+        liveBufferLatencyMinRemain: 0.5,
+        lazyLoad: false,
+        autoCleanupSourceBuffer: true,
+        // Prevents MEDIA_ERR_DECODE caused by audio timestamp gaps in live JT1078 streams
+        fixAudioTimestampGap: true,
+        // Limit backward buffer to avoid SourceBuffer quota errors on long sessions
+        autoCleanupMaxBackwardDuration: 10,
+        autoCleanupMinBackwardDuration: 5,
+      });
+
+      player.attachMediaElement(video);
+      player.load();
+      video.play().catch(() => {});
+
+      player.on(mpegts.Events.MEDIA_INFO, () => {
+        setStatus(channelId, 'live');
+        hideOverlay(channelId);
+      });
+
+      player.on(mpegts.Events.ERROR, (type, detail, info) => {
+        console.error(`ch${channelId}`, type, detail, info);
+        setStatus(channelId, 'error', `${type}: ${detail}`);
+
+        const statusCode = info && info.code;
+        if (statusCode === 401 || statusCode === 403) {
+          // Token expired or session closed — re-request a fresh stream session
+          setOverlay(channelId, 'Re-authenticating…');
+          setTimeout(() => startChannel(currentApiKey, currentDeviceId, channelId), 2000);
+        } else {
+          // Network blip or other error — reconnect with same tokenised URL
+          setTimeout(() => connectFlv(url, channelId), 3000);
+        }
+      });
+
+      players[channelId] = player;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────────
+    function setStatus(channelId, state, message) {
+      const dot = document.getElementById(`status-${channelId}`);
+      if (dot) dot.className = `tile-status ${state}`;
+      if (message) setOverlay(channelId, message);
+    }
+
+    function setOverlay(channelId, text) {
+      const el = document.getElementById(`overlay-${channelId}`);
+      if (el) {
+        el.textContent = text;
+        el.classList.remove('hidden');
+      }
+    }
+
+    function hideOverlay(channelId) {
+      const el = document.getElementById(`overlay-${channelId}`);
+      if (el) el.classList.add('hidden');
+    }
+
+    // Clean up players on page unload
+    window.addEventListener('beforeunload', () => {
+      for (const p of Object.values(players)) {
+        try {
+          p.destroy();
+        } catch (_) {}
+      }
+    });
+  </script>
+</body>
+
+</html>
