@@ -281,7 +281,8 @@ export class GatewayHookService {
       vehicle_id: deviceData.vehicle_id || undefined,
       latitude: latitude, longitude: longitude, speed: speed,
       triggered_at: body.triggeredAt + "Z", alarm_ref: eventId, trigger_detail: body.detail,
-      operator_id: deviceData.operator_id, device_id: deviceData.device_id
+      operator_id: deviceData.operator_id, device_id: deviceData.device_id,
+      cleared_at: severity === "INFO" ? body.triggeredAt + "Z" : undefined
     }).catch((e) => ({ error: e }));
 
     //if there's an error, return it
