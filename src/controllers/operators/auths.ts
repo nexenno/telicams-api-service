@@ -201,7 +201,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     //create the operator account
     const createOp: SendDBQuery = checkExisting ? await UserOperatorModel.findByIdAndUpdate(checkExisting._id, { $set: qBuilder },
-      { new: true, lean: true }).catch(e => ({ error: e })) : await UserOperatorModel.create(qBuilder).catch(e => ({ error: e }));
+      { returnDocument:"after" , lean: true }).catch(e => ({ error: e })) : await UserOperatorModel.create(qBuilder).catch(e => ({ error: e }));
 
     if (createOp && createOp.error) {
       console.log("Error creating operator account", createOp.error)
@@ -395,7 +395,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     let updatePassword: SendDBQuery = await UserOperatorModel.findOneAndUpdate({ _id: checkUser._id }, {
       $set: { password: bcrypt.hashSync(newPass, 10) }
-    }, { lean: true, new: true }).catch(e => ({ error: e }))
+    }, { lean: true,  returnDocument:"after" }).catch(e => ({ error: e }))
 
     //if there's an error
     if (updatePassword && updatePassword.error) {
@@ -469,7 +469,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     //update the OTP to confirmed
     let updateOTP: SendDBQuery = await OtpRequestModel.findByIdAndUpdate(getOTPConfim._id, { $set: { status: 1 } },
-      { lean: true, new: true }).catch(e => ({ error: e }))
+      { lean: true, returnDocument:"after" }).catch(e => ({ error: e }))
 
     //check for error
     if (updateOTP && updateOTP.error) {

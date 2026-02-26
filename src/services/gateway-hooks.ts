@@ -88,7 +88,7 @@ export class GatewayHookService {
         device_oem: manufacturer, device_model: model, province_id: provinceID,
         city_id: cityID, license_plate: licensePlate, gateway_status: 1,
       }
-    }, { new: true }).lean().catch((e) => ({ error: e }));
+    }, { returnDocument: "after" }).lean().catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (updateDevice && updateDevice.error) {
@@ -345,7 +345,7 @@ export class GatewayHookService {
       device_id: deviceData.device_id, alarm_ref: eventId
     }, {
       $set: { status: 1, cleared_at: body.clearedAt + "Z" }
-    }, { new: true }).catch((e) => ({ error: e }));
+    }, { returnDocument: "after" }).catch((e) => ({ error: e }));
 
     //if there's an error, return it
     if (updateData && updateData.error) {

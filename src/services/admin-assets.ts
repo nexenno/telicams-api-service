@@ -76,7 +76,7 @@ export class AdminAssetService {
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "Nothing to update")
 
     let saveDevice: SendDBQuery = id ? await DashcamDeviceModel.findByIdAndUpdate(id, { $set: qBuilder },
-      { lean: true, new: true }).catch(e => ({ error: e })) : await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
+      { lean: true, returnDocument: "after" }).catch(e => ({ error: e })) : await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
 
     //check for error
     if (saveDevice && saveDevice.error) {
@@ -296,7 +296,7 @@ export class AdminAssetService {
 
     let saveDevice: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
       $set: { active_status: parseInt(status), suspension_reason: reason }
-    }, { new: true }).catch(e => ({ error: e }))
+    }, { returnDocument: "after" }).catch(e => ({ error: e }))
 
     //check for error
     if (saveDevice && saveDevice.error) {
@@ -355,7 +355,7 @@ export class AdminAssetService {
     //update the vehicle and rider table
     let Assignveh: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
       $set: { operator_id: optID, assign_status: 1, }
-    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
+    }, { lean: true, returnDocument: "after" }).catch((e: object) => ({ error: e }));
 
     if (Assignveh && Assignveh.error) {
       console.log("Error assigning device to operator", Assignveh.error)
@@ -397,7 +397,7 @@ export class AdminAssetService {
     //update the vehicle and rider table
     let Assignveh: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
       $unset: { operator_id: 1, vehicle_id: 1, assign_status: 0 },
-    }, { lean: true, new: true }).catch(e => ({ error: e }))
+    }, { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
     if (Assignveh && Assignveh.error) {
       console.log("Error unassigning device from operator or vehicle", Assignveh.error)

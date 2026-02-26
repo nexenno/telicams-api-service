@@ -143,7 +143,7 @@ export class OperatorAssetService {
     //update the device with the vehicle id and assign status
     let Assignveh: SendDBQuery = await DashcamDeviceModel.findByIdAndUpdate(id, {
       $set: { vehicle_id: vehicleID, assign_status: 2 }
-    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
+    }, { lean: true, returnDocument: "after" }).catch((e: object) => ({ error: e }));
 
     if (Assignveh && Assignveh.error) {
       console.log("Error assigning device to operator", Assignveh.error)
@@ -183,7 +183,7 @@ export class OperatorAssetService {
     //remove the device id from the vehicle and change assign status
     let unAssign: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(getDevice._id, {
       $unset: { device_id: 1 }, $set: { device_assigned: 0 }
-    }, { lean: true, new: true }).catch((e: object) => ({ error: e }));
+    }, { lean: true, returnDocument: "after" }).catch((e: object) => ({ error: e }));
 
     if (unAssign && unAssign.error) {
       console.log("Error unassigning device from vehicle", unAssign.error)
@@ -300,7 +300,7 @@ export class OperatorAssetService {
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "Nothing to update")
 
     let saveDevice: SendDBQuery<DashcamDeviceTypes> = id ? await DashcamDeviceModel.findOneAndUpdate({ _id: id, operator_id: optID }, { $set: qBuilder },
-      { lean: true, new: true }).catch(e => ({ error: e })) : await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
+      { lean: true, returnDocument: "after" }).catch(e => ({ error: e })) : await DashcamDeviceModel.create(qBuilder).catch(e => ({ error: e }))
 
     //check for error
     if (saveDevice && saveDevice.error) {
@@ -444,7 +444,7 @@ export class OperatorAssetService {
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "No data to process");
 
     let createVehicle: SendDBQuery = id ? await OptVehicleListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: qBuilder }, { new: true, lean: true }).catch(e => ({ error: e })) :
+      { $set: qBuilder }, { returnDocument: "after", lean: true }).catch(e => ({ error: e })) :
       await OptVehicleListModel.create(qBuilder).catch(e => ({ error: e }));
 
     //if there's error in creating the account
@@ -938,7 +938,7 @@ export class OperatorAssetService {
       }
 
       let updateStatus: SendDBQuery = await OptVehicleListModel.findOneAndUpdate({ _id: vehID, operator_id: optID },
-        { $set: qBuilder }, { new: true }).catch(e => ({ error: e }))
+        { $set: qBuilder }, { returnDocument: "after" }).catch(e => ({ error: e }))
 
       //check for error
       if (updateStatus && updateStatus.error) {
@@ -1176,7 +1176,7 @@ export class OperatorAssetService {
       }
 
       let updateStatus: SendDBQuery<DashcamAlarmTypes> = await DashcamAlarmModel.findOneAndUpdate({ _id: alarmID, operator_id: optID },
-        { $set: { status: parseInt(status) } }, { new: true })
+        { $set: { status: parseInt(status) } }, { returnDocument: "after" })
         .populate("vehicle_id", "plate_number", OptVehicleListModel).catch(e => ({ error: e }))
 
       //check for error

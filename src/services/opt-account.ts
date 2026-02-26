@@ -163,7 +163,7 @@ export class OperatorAccountService {
     }
 
     let saveUser: SendDBQuery = await UserOperatorModel.findByIdAndUpdate(userData.auth_id, { $set: queryBuilder },
-      { lean: true, new: true }).catch(e => ({ error: e }))
+      { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
     //check for error
     if (saveUser && saveUser.error) {
@@ -213,7 +213,7 @@ export class OperatorAccountService {
       // If operator has any related data 
       if (true) {
         removeData = await UserOperatorModel.findByIdAndUpdate(userData.auth_id, { $set: { status: 3 } },
-          { new: true }).catch(e => ({ error: e }));
+          { returnDocument: "after" }).catch(e => ({ error: e }));
       } else {
         // If operator has NO dependencies 
         removeData = await UserOperatorModel.findByIdAndDelete(userData.auth_id)
@@ -293,7 +293,7 @@ export class OperatorAccountService {
     }
 
     let saveUser: SendDBQuery = await UserOperatorModel.findByIdAndUpdate(userData.auth_id,
-      { $set: { password: bcrypt.hashSync(newPass, 10) } }, { new: true }).catch(e => ({ error: e }))
+      { $set: { password: bcrypt.hashSync(newPass, 10) } }, { returnDocument: "after" }).catch(e => ({ error: e }))
 
     //check for error
     if (saveUser && saveUser.error) {
@@ -445,7 +445,7 @@ export class OperatorAccountService {
 
     let saveUser: SendDBQuery = id ? await UserOperatorModel.findOneAndUpdate({
       _id: id, operator_id: new mongoose.Types.ObjectId(userData.operator_id), account_type: "team"
-    }, { $set: queryBuilder }, { lean: true, new: true }).catch(e => ({ error: e })) :
+    }, { $set: queryBuilder }, { lean: true, returnDocument: "after" }).catch(e => ({ error: e })) :
       await UserOperatorModel.create(queryBuilder).catch(e => ({ error: e }))
 
     //check for error
@@ -521,7 +521,7 @@ export class OperatorAccountService {
 
     let saveUser: SendDBQuery<UserOperatorTypes> = await UserOperatorModel.findByIdAndUpdate(id, {
       $set: { account_status: parseInt(status), suspend_reason: suspendReason }
-    }, { new: true }).catch(e => ({ error: e }))
+    }, { returnDocument: "after" }).catch(e => ({ error: e }))
 
     //check for error
     if (saveUser && saveUser.error) {

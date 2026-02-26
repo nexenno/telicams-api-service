@@ -45,7 +45,7 @@ export class OperatorOtherService {
     if (Object.keys(qBuilder).length === 0) return helpers.outputError(res, null, "No data to process")
 
     let createColl: SendDBQuery = id ? await CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: qBuilder }, { new: true, lean: true }).catch(e => ({ error: e })) :
+      { $set: qBuilder }, { returnDocument: "after", lean: true }).catch(e => ({ error: e })) :
       await CollectionListModel.create(qBuilder).catch(e => ({ error: e }));
 
     //if there's error in creating the account
@@ -182,7 +182,7 @@ export class OperatorOtherService {
     }
 
     let updateCol: SendDBQuery = await CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: { status: parseInt(status) } }, { lean: true, new: true }).catch(e => ({ error: e }))
+      { $set: { status: parseInt(status) } }, { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
     if (updateCol && updateCol.error) {
       console.log("Error updating collection status", updateCol.error)
@@ -255,7 +255,7 @@ export class OperatorOtherService {
       //check if the vehicle exist and belong to the operator
       let checkVeh: SendDBQuery = await OptVehicleListModel.findOneAndUpdate({ _id: vehicleID, operator_id: optID },
         requestType === "1" ? { $set: { collection_id: id } } : { $unset: { collection_id: 1 } },
-        { lean: true, new: true }).catch(e => ({ error: e }))
+        { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
       //check for error
       if (!checkVeh || checkVeh.error) {
@@ -323,7 +323,7 @@ export class OperatorOtherService {
 
     let updateData: SendDBQuery = await UserOperatorModel.findOneAndUpdate({ _id: teamID, operator_id: optID },
       requestType === "1" ? { $addToSet: { collection_access: id } } : { $pull: { collection_access: id } },
-      { lean: true, new: true }).catch(e => ({ error: e }))
+      { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
     if (updateData && updateData.error) {
       console.log("Error updating team collection access", updateData.error)

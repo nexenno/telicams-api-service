@@ -83,7 +83,7 @@ export class OperatorTrackingService {
     }
 
     return helpers.outputSuccess(res, {
-      stream_url: startStreamReq.data.srsUrls.hls,
+      stream_url: startStreamReq.data.flv,
       session_id: startStreamReq.data.sessionId,
     })
   }
