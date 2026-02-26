@@ -418,7 +418,7 @@ optAssetDoc.get_alarm = {
   sidebar: "Get Alarm",
   comment: "",
   method: "GET",
-  url: "http(s)://base-url/operators/assets/alarm-lists/{alarm_id}",
+  url: "http(s)://base-url/operators/assets/alarm-lists/{vehicle_id}",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -521,7 +521,7 @@ optAssetDoc.get_vehlocation = {
   sidebar: "Get Locations",
   comment: "",
   method: "GET",
-  url: "http(s)://base-url/operators/assets/location-lists/",
+  url: "http(s)://base-url/operators/assets/location-lists/{vehicle_id}",
   doc_header: {
     field: "Field",
     type: "Type",

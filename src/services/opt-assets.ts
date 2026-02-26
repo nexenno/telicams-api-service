@@ -968,14 +968,13 @@ export class OperatorAssetService {
   }
 
   //========**************ALARM SECTION***********=========================/
-  static async GetAlarmData({ query, id, res, customData: userData }: PrivateMethodProps) {
+  static async GetAlarmData({ query, id: vehicleID, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
     let endDate = helpers.getInputValueString(query, "end_date")
     let timezone = helpers.getInputValueString(query, "timezone")
     let alarmType = helpers.getInputValueString(query, "alarm_type")
-    let vehicleID = helpers.getInputValueString(query, "vehicle_id")
     let page = helpers.getInputValueString(query, "page")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let component = helpers.getInputValueString(query, "component")
@@ -983,9 +982,9 @@ export class OperatorAssetService {
 
     let qBuilder = { operator_id: new mongoose.Types.ObjectId(optID) } as DashcamAlarmTypes
 
-    if (id) {
-      qBuilder._id = new mongoose.Types.ObjectId(id)
-    }
+    // if (id) {
+    //   qBuilder._id = new mongoose.Types.ObjectId(id)
+    // }
 
     if (vehicleID) {
       if (helpers.isInvalidID(vehicleID)) {
@@ -1135,7 +1134,7 @@ export class OperatorAssetService {
       return helpers.outputError(res, 500)
     }
 
-    if (component || id) {
+    if (component) {
       getData = getData.length ? getData[0] : {}
     }
     return helpers.outputSuccess(res, getData);
