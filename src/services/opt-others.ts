@@ -209,6 +209,7 @@ export class OperatorOtherService {
     let requestType = helpers.getInputValueString(body, "request_type")
     let optID = helpers.getOperatorAuthID(userData)
     let isSyncReq = vehicleIDs.length <= 10
+    let collName = ""
 
     if (!requestType) return helpers.outputError(res, null, "Request type is required")
     if (!["1", "2"].includes(requestType)) return helpers.outputError(res, null, "Invalid request type")
@@ -227,18 +228,21 @@ export class OperatorOtherService {
     if (!isSyncReq) helpers.outputSuccess(res, { msg: "Action is in progress. Refresh the page to see the updates." })
 
     //check if the collection exist
-    let getCol: SendDBQuery = await CollectionListModel.findOne({ _id: id, operator_id: optID }).lean().catch(e => ({ error: e }))
+    if (requestType === "1") {
+      let getCol: SendDBQuery = await CollectionListModel.findOne({ _id: id, operator_id: optID }).lean().catch(e => ({ error: e }))
 
-    //check for error
-    if (getCol && getCol.error) {
-      console.log("Error checking collection for assign collection", getCol.error)
-      return helpers.outputError(res, 500)
+      //check for error
+      if (getCol && getCol.error) {
+        console.log("Error checking collection for assign collection", getCol.error)
+        return helpers.outputError(res, 500)
+      }
+
+      if (!getCol) return helpers.outputError(res, null, "Collection not found")
+
+      //if the collection is archived, return error
+      if (getCol.status === 2) return helpers.outputError(res, null, "Collection is archived. Action aborted!")
+      collName = getCol.name
     }
-
-    if (!getCol) return helpers.outputError(res, null, "Collection not found")
-
-    //if the collection is archived, return error
-    if (getCol.status === 2) return helpers.outputError(res, null, "Collection is archived. Action aborted!")
 
     //remove duplicates
     vehicleIDs = [...new Set(vehicleIDs)]
@@ -271,8 +275,8 @@ export class OperatorOtherService {
         auth_id: userData.auth_id, operator_id: optID as string,
         operation: requestType === "1" ? "assign-collection" : "remove-collection",
         data: { id: String(vehicleID), plate_number: checkVeh.plate_number },
-        body: requestType === "1" ? `Assigned ${checkVeh.plate_number} vehicle to ${getCol.name} collection` :
-          `Removed ${checkVeh.plate_number} vehicle from ${getCol.name} collection`
+        body: requestType === "1" ? `Assigned ${checkVeh.plate_number} vehicle to ${collName} collection` :
+          `Removed ${checkVeh.plate_number} vehicle a collection`
       }).catch(e => { })
     }
 
