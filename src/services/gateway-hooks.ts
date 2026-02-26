@@ -277,7 +277,7 @@ export class GatewayHookService {
 
     //log the alarm event in the database
     let logData: SendDBQuery = await DashcamAlarmModel.create({
-      alarm_type: alarmType, severity: severity, status: 0,
+      alarm_type: alarmType, severity: severity, status: severity === "INFO" ? 1 : 0,
       vehicle_id: deviceData.vehicle_id || undefined,
       latitude: latitude, longitude: longitude, speed: speed,
       triggered_at: body.triggeredAt + "Z", alarm_ref: eventId, trigger_detail: body.detail,
