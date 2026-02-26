@@ -632,6 +632,7 @@ const RouteContainer = [
       optAssetDoc.update_vehicle_status,
       optAssetDoc.get_vehicle,
       optAssetDoc.delete_vehicle,
+      optAssetDoc.engine_shutdown,
     ]
   },
   {
