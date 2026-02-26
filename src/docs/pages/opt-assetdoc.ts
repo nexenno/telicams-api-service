@@ -188,7 +188,7 @@ optAssetDoc.get_vehicle = {
       field: "component",
       type: "String",
       status: "optional",
-      description: "count | count-status",
+      description: "count | count-status | count-profilestat",
     },
 
   ],
@@ -569,7 +569,7 @@ optAssetDoc.get_vehlocation = {
       field: "component",
       type: "String",
       status: "optional",
-      description: "count | count-status | count-profilestat",
+      description: "count | count-status",
     },
 
   ],
