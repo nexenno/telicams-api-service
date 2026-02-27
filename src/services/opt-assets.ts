@@ -1382,46 +1382,48 @@ export class OperatorAssetService {
       vehicle_id: new mongoose.Types.ObjectId(vehicleID)
     } as DashcamAlarmTypes
 
-    if (!recordDate || !startTime || !endTime) {
-      return helpers.outputError(res, null, "Kindly select the date and time range for the location data you want to retrieve")
+
+    if (recordDate || startTime || endTime) {
+      if (!recordDate || !startTime || !endTime) {
+        return helpers.outputError(res, null, "Kindly select the date and time range for the location data you want to retrieve")
+      }
+      //chek end date if submitted
+      //if start date is not submitted
+      if (helpers.isDateFormat(recordDate)) {
+        return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
+      }
+
+      //validate start and end time
+      if (!helpers.isTimeFormat(startTime)) {
+        return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
+      }
+
+      if (!helpers.isTimeFormat(endTime)) {
+        return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
+      }
+      //if there's no timezone, return
+      if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
+
+      //valida the timezone
+      if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+
+      let getUTCStart = helpers.convertDateTimeZone({
+        dateString: `${recordDate}T${startTime}:00`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
+      let getUTCEnd = helpers.convertDateTimeZone({
+        dateString: `${recordDate}T${endTime}:59`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
+
+      //if the start time is greater than end time
+      if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
+        return helpers.outputError(res, null, 'Start time can not be greater than end time');
+      }
+
+      // @ts-expect-error
+      qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
     }
-
-    //chek end date if submitted
-    //if start date is not submitted
-    if (helpers.isDateFormat(recordDate)) {
-      return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
-    }
-
-    //validate start and end time
-    if (!helpers.isTimeFormat(startTime)) {
-      return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
-    }
-
-    if (!helpers.isTimeFormat(endTime)) {
-      return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
-    }
-    //if there's no timezone, return
-    if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
-
-    //valida the timezone
-    if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
-
-    let getUTCStart = helpers.convertDateTimeZone({
-      dateString: `${recordDate}T${startTime}:00`,
-      fromTimeZone: timezone, toTimeZone: "utc"
-    })
-    let getUTCEnd = helpers.convertDateTimeZone({
-      dateString: `${recordDate}T${endTime}:59`,
-      fromTimeZone: timezone, toTimeZone: "utc"
-    })
-
-    //if the start time is greater than end time
-    if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
-      return helpers.outputError(res, null, 'Start time can not be greater than end time');
-    }
-
-    // @ts-expect-error
-    qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
 
     let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
     if (!pageItem.status) return helpers.outputError(res, null, pageItem.msg)
