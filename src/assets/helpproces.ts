@@ -136,8 +136,10 @@ export default class helpProcessor {
   static startOfflineDeviceOnDisconnect(deviceID: string) {
     deviceID = String(deviceID)
     //clear off any one pending
+    console.log("Pass stage 1 for device ID ", deviceID)
     clearTimeout(DisconnectedDeviceTimeRef.get(deviceID)!)
     DisconnectedDeviceTimeRef.delete(deviceID)
+    console.log("Pass stage 2 for device ID ", deviceID)
     //set a new disconnect
     DisconnectedDeviceTimeRef.set(deviceID, setTimeout(async () => {
       let deviceData = GlobalConnectedDevices.get(deviceID)
@@ -154,7 +156,7 @@ export default class helpProcessor {
       }
       GlobalConnectedDevices.delete(deviceID)
       DisconnectedDeviceTimeRef.delete(deviceID)
-    }, 5 * 60 * 1000)) //5 minutes
+    }, 1 * 60 * 1000)) //1 minute
   }
 
   static stopOfflineDeviceDisconnectTimer(deviceID: string) {

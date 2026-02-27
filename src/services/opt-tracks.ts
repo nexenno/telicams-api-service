@@ -277,13 +277,11 @@ export class OperatorTrackingService {
 
     //add the device number to the media query
     mediaQuery.deviceId = optVehicle.device_id.device_number
-    let qq = {
-      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/query`,
-      // url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/${mediaType === "1" ? "query" : "query-all"}${helpers.getRequestParams(mediaQuery)}`,
-      method: "POST"
-    }
-    let reqMedia: SendDBQuery = await helpers.sendRequestToGateway(qq as any)
-    console.log("Media query sent with params: ", qq, " and response: ", reqMedia)
+    let reqMedia: SendDBQuery = await helpers.sendRequestToGateway({
+      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/${mediaType === "1" ? "query" : "query-all"}`,
+      method: "POST", json: mediaQuery
+    })
+    console.log("Media query sent with params: ", reqMedia)
     //if there's no result or result doesn't have a stream URL, return an error
     if (!reqMedia || !reqMedia.data || !reqMedia.data.deviceId || !reqMedia.data.commandId) {
       //log something
