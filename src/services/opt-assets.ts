@@ -1376,7 +1376,7 @@ export class OperatorAssetService {
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let component = helpers.getInputValueString(query, "component")
     let optID = helpers.getOperatorAuthID(userData)
-
+    itemPerPage = "180" //temporary for testing, remove later
     let qBuilder = {
       operator_id: new mongoose.Types.ObjectId(optID),
       vehicle_id: new mongoose.Types.ObjectId(vehicleID)

@@ -281,11 +281,11 @@ export class OperatorTrackingService {
       url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/${mediaType === "1" ? "query" : "query-all"}`,
       method: "POST", json: mediaQuery
     })
-    console.log("Media query sent with params: ", reqMedia)
+    // console.log("Media query sent with params: ", reqMedia)
     //if there's no result or result doesn't have a stream URL, return an error
     if (!reqMedia || !reqMedia.data || !reqMedia.data.deviceId || !reqMedia.data.commandId) {
       //log something
-      // return helpers.outputError(res, null, "Failed to get media list. Please try again")
+      return helpers.outputError(res, null, "Unable to start media retrieval. Please try again")
     }
 
     return helpers.outputSuccess(res)
@@ -306,8 +306,10 @@ export class OperatorTrackingService {
     //get the command ID from the request query
     let reqMedia: SendDBQuery = await helpers.sendRequestToGateway({
       url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files`,
-      method: "POST"
+      method: "GET"
     })
+
+    // console.log("Media retrieval response: ", reqMedia)
 
     //if there's result coming
     if (reqMedia && reqMedia.data && reqMedia.data.files && reqMedia.data.files.length > 0) {
@@ -316,6 +318,5 @@ export class OperatorTrackingService {
 
     return helpers.outputSuccess(res, [])
   }
-
 
 }
