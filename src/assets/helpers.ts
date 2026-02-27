@@ -337,7 +337,7 @@ export default class helpers {
     }
     //check if the device is prepared on the system already
     let getDevice: SendDBQuery = await DashcamDeviceModel.aggregate([
-      { $match: { device_number: deviceNumber, operator_id: 1 } },
+      { $match: { device_number: deviceNumber, } },
       {
         $lookup: {
           from: DatabaseTableList.vehicle_lists,

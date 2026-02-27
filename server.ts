@@ -31,5 +31,5 @@ app.useError((err, req, res) => {
 })
 
 app.listen(fileConfig.port, () => {
-  console.log("Koova User Service running on port " + fileConfig.port)
+  console.log("Telicams Service running on port " + fileConfig.port)
 })
