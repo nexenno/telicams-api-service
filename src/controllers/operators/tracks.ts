@@ -11,7 +11,7 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
 
 
   async deviceStreams(id: string | undefined) {
-    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    if (!id || helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return this.__run({
       post: this.query.component === "start" ? OperatorTrackingService.StartDeviceStream :
         this.query.component === "stop" ? OperatorTrackingService.StopDeviceStream :
@@ -22,10 +22,20 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
 
   async deviceSignals(id: string | undefined) {
     if (this.method !== "get") return helpers.outputError(this.res, null, "Method not allowed")
-    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    if (!id || helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return OperatorTrackingService.GetDeviceSignal({
       body: this.req.body, id, query: this.req.query,
       res: this.res, req: this.req, customData: this._custom_data
+    })
+  }
+
+  async deviceMedias(id: string | undefined) {
+    if (!id || helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+
+    return this.__run({
+      get: OperatorTrackingService.GetPastMedia,
+      post: OperatorTrackingService.StartPastMedia,
+      id: { post: "optional", delete: "optional", get: "optional" },
     })
   }
 

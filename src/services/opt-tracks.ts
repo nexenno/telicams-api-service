@@ -207,72 +207,79 @@ export class OperatorTrackingService {
     let recordDate = helpers.getInputValueString(body, "record_date")
     let mediaType = helpers.getInputValueString(body, "media_type")
 
-    if (!vehicleID) return helpers.outputError(res, null, "Vehicle ID is required")
-    if (helpers.isInvalidID(vehicleID)) return helpers.outputError(res, null, "Invalid vehicle ID")
+    let mediaQuery = {
+      deviceId: undefined,
+      channelId: undefined,
+      startTime: undefined,
+      endTime: undefined,
+      mediaType: 0
+    } as ObjectPayload
 
-    if (!recordDate || !startTime || !endTime) {
-      return helpers.outputError(res, null, "Kindly select the date and time range for the media data you want to retrieve")
-    }
+    if (!mediaType) return helpers.outputError(res, null, "Media type is required")
+    if (!["1", "2"].includes(mediaType)) return helpers.outputError(res, null, "Invalid media type. Must be 1 for video and 2 for all")
 
     if (channelID) {
       //validate channel ID
       if (!helpers.isNumber({ input: channelID, type: "int", min: 1, max: 4 })) {
         return helpers.outputError(res, null, "Invalid channel ID. Must be a number between 1 and 4")
       }
+      mediaQuery.channelId = channelID
     }
 
-    //chek end date if submitted
-    //if start date is not submitted
-    if (!helpers.isDateFormat(recordDate)) {
-      return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
-    }
+    if (recordDate || startTime || endTime) {
+      if (!recordDate || !startTime || !endTime) {
+        return helpers.outputError(res, null, "Kindly select the date and time range for the media data you want to retrieve")
+      }
+      //chek end date if submitted
+      //if start date is not submitted
+      if (!helpers.isDateFormat(recordDate)) {
+        return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
+      }
 
-    //validate start and end time
-    if (!helpers.isTimeFormat(startTime)) {
-      return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
-    }
+      //validate start and end time
+      if (!helpers.isTimeFormat(startTime)) {
+        return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
+      }
 
-    if (!helpers.isTimeFormat(endTime)) {
-      return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
-    }
+      if (!helpers.isTimeFormat(endTime)) {
+        return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
+      }
 
-    //if there's no timezone, return
-    if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
+      //if there's no timezone, return
+      if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
 
-    //valida the timezone
-    if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
+      //valida the timezone
+      if (!GlobalTimeZones.includes(timezone)) return helpers.outputError(res, null, "Submitted timezone is invalid")
 
-    let getUTCStart = helpers.convertDateTimeZone({
-      dateString: `${recordDate}T${startTime}:00`,
-      fromTimeZone: timezone, toTimeZone: "utc"
-    })
-    let getUTCEnd = helpers.convertDateTimeZone({
-      dateString: `${recordDate}T${endTime}:59`,
-      fromTimeZone: timezone, toTimeZone: "utc"
-    })
+      let getUTCStart = helpers.convertDateTimeZone({
+        dateString: `${recordDate}T${startTime}:00`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
+      let getUTCEnd = helpers.convertDateTimeZone({
+        dateString: `${recordDate}T${endTime}:59`,
+        fromTimeZone: timezone, toTimeZone: "utc"
+      })
 
-    //if the start time is greater than end time
-    if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
-      return helpers.outputError(res, null, 'Start time can not be greater than end time');
+      //if the start time is greater than end time
+      if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
+        return helpers.outputError(res, null, 'Start time can not be greater than end time');
+      }
+      mediaQuery.startTime = `${getUTCStart.date} ${getUTCStart.time}:00`
+      mediaQuery.endTime = `${getUTCEnd.date} ${getUTCEnd.time}:59`
     }
 
     //check if the device number belongs to the operator
-    let optVehicle = await helpers.checkVehicleBelongsToOperator(vehicleID, optID)
+    let optVehicle = await helpers.checkVehicleBelongsToOperator(vehicleID as string, optID)
     //if there's an error, return it
     if (!optVehicle || !optVehicle.device_id || !optVehicle.device_id._id) {
       return helpers.outputError(res, null, "Unable to validate the selected vehicle");
     }
 
-    let mediaQuery = {
-      deviceId: optVehicle.device_id.device_number,
-      channelId: channelID ? parseInt(channelID) : undefined,
-      startTime: `${getUTCStart.date} ${getUTCStart.time}`,
-      endTime: `${getUTCEnd.date} ${getUTCEnd.time}`,
-      mediaType: 0
-    }
+    //add the device number to the media query
+    mediaQuery.deviceId = optVehicle.device_id.device_number
 
     let reqMedia: SendDBQuery = await helpers.sendRequestToGateway({
-      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/query${helpers.getRequestParams(mediaQuery)}`,
+      url: `${serviceEndpoint.device_endpoint}/${optVehicle.device_id.device_number}/files/${mediaType === "1" ? "query" : "query-all"}${helpers.getRequestParams(mediaQuery)}`,
       method: "POST"
     })
 
@@ -283,7 +290,6 @@ export class OperatorTrackingService {
     }
 
     return helpers.outputSuccess(res)
-
   }
 
   static async GetPastMedia({ id: vehicleID, res, customData: userData }: PrivateMethodProps) {
