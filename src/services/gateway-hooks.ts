@@ -112,6 +112,8 @@ export class GatewayHookService {
     //   "connectedAt": "2026-02-21T10:30:00",
     //   "timestamp": "2026-02-21T10:30:00"
     // }
+    console.log("Device connected event received with body: ", body)
+    console.log("Current connected devices: ", Array.from(GlobalConnectedDevices.keys()))
     let deviceID = String(body.deviceId || "").trim()
 
     //validate the inputs
@@ -124,6 +126,7 @@ export class GatewayHookService {
 
     //if still connected
     if (GlobalConnectedDevices.has(deviceID)) {
+      console.log("Device Has Key, but received connected event again for device ID ", deviceID)
       //stop timer for clearing offline device if it exists
       helpProcessor.stopOfflineDeviceDisconnectTimer(deviceID)
       return res.status(200).json({ success: true })
