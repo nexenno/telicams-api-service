@@ -80,10 +80,10 @@ const Operators = new mongoose.Schema({
     type: Schema.Types.ObjectId,
     ref: DatabaseTableList.operator_roles,
   },
-  collection_id: {
+  collection_id: [{
     type: Schema.Types.ObjectId,
     ref: DatabaseTableList.collection_lists,
-  },
+  }],
   suspend_reason: {
     type: String,
     default: ""

@@ -99,35 +99,35 @@ export class OperatorOtherService {
         { $sort: { _id: -1 as -1 } },
         { $skip: pageItem.data.page },
         { $limit: pageItem.data.item_per_page },
-        { $addFields: { collection_id: "$_id" } },
+
+        {
+          $lookup: {
+            from: DatabaseTableList.user_operators,
+            let: { collID: "$_id" },
+            pipeline: [{
+              $match: { $expr: { $in: ["$$collID", { $ifNull: ["$collection_id", []] }] } },
+            }, {
+              $project: { full_name: "$business_name", auth_id: "$_id" }
+            }],
+            as: "team_data"
+          }
+        },
+        {
+          $lookup: {
+            from: DatabaseTableList.vehicle_lists,
+            let: { collID: "$_id" },
+            pipeline: [{
+              $match: { $expr: { $eq: ["$collection_id", "$$collID"] } },
+            }, {
+              $count: "total"
+            }],
+            as: "vehicle_count"
+          }
+        },
+        { $unwind: { path: "$vehicle_count", preserveNullAndEmptyArrays: true } },
+        { $addFields: { collection_id: "$_id", total_vehicle: { $ifNull: ["$vehicle_count.total", 0] } } },
       ]),
-      {
-        $lookup: {
-          from: DatabaseTableList.user_admins,
-          let: { collID: "$_id" },
-          pipeline: [{
-            $match: { $expr: { $eq: ["$collection_id", "$$collID"] } },
-          }, {
-            $project: { first_name: 1, last_name: 1, auth_id: "$_id" }
-          }],
-          as: "team_data"
-        }
-      },
-      {
-        $lookup: {
-          from: DatabaseTableList.vehicle_lists,
-          let: { collID: "$_id" },
-          pipeline: [{
-            $match: { $expr: { $eq: ["$collection_id", "$$collID"] } },
-          }, {
-            $count: "total"
-          }],
-          as: "vehicle_count"
-        }
-      },
-      { $unwind: { path: "$vehicle_count", preserveNullAndEmptyArrays: true } },
-      { $addFields: { total_vehicle: { $ifNull: ["$vehicle_count.total", 0] } } },
-      { $unset: ["__v", "_id", "vehicle_count", "team_data._id"] }
+      { $unset: ["__v", "_id", "vehicle_count", "team_data._id", "updatedAt", "operator_id"] }
     ]
 
     let getData: SendDBQuery = await CollectionListModel.aggregate(pipLine).catch(e => ({ error: e }))
