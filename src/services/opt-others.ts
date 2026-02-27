@@ -386,7 +386,7 @@ export class OperatorOtherService {
 
     //chek start date if submitted
     if (startDate) {
-      if (helpers.isDateFormat(startDate)) {
+      if (!helpers.isDateFormat(startDate)) {
         return helpers.outputError(res, null, 'Invalid start date. must be in the formate YYYY-MM-DD');
       }
       //if there's no end time
@@ -396,7 +396,7 @@ export class OperatorOtherService {
     //chek end date if submitted
     if (endDate) {
       //if start date is not submitted
-      if (helpers.isDateFormat(endDate)) {
+      if (!helpers.isDateFormat(endDate)) {
         return helpers.outputError(res, null, 'Invalid end date. must be in the formate YYYY-MM-DD');
       }
       if (!startDate) return helpers.outputError(res, null, 'end_date can only be used with start_date');
