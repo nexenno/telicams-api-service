@@ -1369,7 +1369,7 @@ export class OperatorAssetService {
   //========**************LOCATION SECTION***********=========================/
   static async GetLocationData({ query, res, id: vehicleID, customData: userData }: PrivateMethodProps) {
     let startTime = helpers.getInputValueString(query, "start_time")
-    let endTime = helpers.getInputValueString(query, "end_time")
+    // let endTime = helpers.getInputValueString(query, "end_time")
     let recordDate = helpers.getInputValueString(query, "record_date")
     let timezone = helpers.getInputValueString(query, "timezone")
     let page = helpers.getInputValueString(query, "page")
@@ -1383,8 +1383,8 @@ export class OperatorAssetService {
     } as DashcamAlarmTypes
 
 
-    if (recordDate || startTime || endTime) {
-      if (!recordDate || !startTime || !endTime) {
+    if (recordDate || startTime) {
+      if (!recordDate || !startTime) {
         return helpers.outputError(res, null, "Kindly select the date and time range for the location data you want to retrieve")
       }
       //chek end date if submitted
@@ -1398,9 +1398,9 @@ export class OperatorAssetService {
         return helpers.outputError(res, null, 'Invalid start time. must be in the formate HH:mm');
       }
 
-      if (!helpers.isTimeFormat(endTime)) {
-        return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
-      }
+      // if (!helpers.isTimeFormat(endTime)) {
+      //   return helpers.outputError(res, null, 'Invalid end time. must be in the formate HH:mm');
+      // }
       //if there's no timezone, return
       if (!timezone) return helpers.outputError(res, null, "Timezone is required when using start_date or end_date")
 
@@ -1412,7 +1412,7 @@ export class OperatorAssetService {
         fromTimeZone: timezone, toTimeZone: "utc"
       })
       let getUTCEnd = helpers.convertDateTimeZone({
-        dateString: `${recordDate}T${endTime}:59`,
+        dateString: `${recordDate}T${startTime}:59`,
         fromTimeZone: timezone, toTimeZone: "utc"
       })
 
@@ -1424,6 +1424,8 @@ export class OperatorAssetService {
       // @ts-expect-error
       qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
     }
+
+    console.log("qBuilder", qBuilder)
 
     let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
     if (!pageItem.status) return helpers.outputError(res, null, pageItem.msg)
