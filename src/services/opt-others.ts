@@ -103,6 +103,18 @@ export class OperatorOtherService {
       ]),
       {
         $lookup: {
+          from: DatabaseTableList.user_admins,
+          let: { collID: "$_id" },
+          pipeline: [{
+            $match: { $expr: { $eq: ["$collection_id", "$$collID"] } },
+          }, {
+            $project: { first_name: 1, last_name: 1, auth_id: "$_id" }
+          }],
+          as: "team_data"
+        }
+      },
+      {
+        $lookup: {
           from: DatabaseTableList.vehicle_lists,
           let: { collID: "$_id" },
           pipeline: [{
@@ -115,7 +127,7 @@ export class OperatorOtherService {
       },
       { $unwind: { path: "$vehicle_count", preserveNullAndEmptyArrays: true } },
       { $addFields: { total_vehicle: { $ifNull: ["$vehicle_count.total", 0] } } },
-      { $unset: ["__v", "_id", "vehicle_count"] }
+      { $unset: ["__v", "_id", "vehicle_count", "team_data._id"] }
     ]
 
     let getData: SendDBQuery = await CollectionListModel.aggregate(pipLine).catch(e => ({ error: e }))
