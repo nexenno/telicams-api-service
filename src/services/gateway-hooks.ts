@@ -139,7 +139,6 @@ export class GatewayHookService {
         $set: { online_status: 1 }
       }).catch(e => ({ error: e }))
     }
-
   }
 
   static async HandleEventDeviceDisconnected({ res, body }: PrivateMethodProps) {
