@@ -297,7 +297,7 @@ export class OperatorOtherService {
   }
 
   static async AssignCollectionToPersonnel({ body, res, req, id, customData: userData }: PrivateMethodProps) {
-    let teamID = helpers.getInputValueString(body, "team_id")
+    let teamID = helpers.getInputValueString(body, "auth_id")
     let requestType = helpers.getInputValueString(body, "request_type")
     let optID = helpers.getOperatorAuthID(userData)
 
@@ -339,7 +339,7 @@ export class OperatorOtherService {
     if (getCol.status === 2) return helpers.outputError(res, null, "Collection is archived. Action aborted!")
 
     let updateData: SendDBQuery = await UserOperatorModel.findOneAndUpdate({ _id: teamID, operator_id: optID },
-      requestType === "1" ? { $addToSet: { collection_access: id } } : { $pull: { collection_access: id } },
+      requestType === "1" ? { $addToSet: { collection_id: id } } : { $pull: { collection_id: id } },
       { lean: true, returnDocument: "after" }).catch(e => ({ error: e }))
 
     if (updateData && updateData.error) {

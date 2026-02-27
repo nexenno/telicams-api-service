@@ -208,7 +208,7 @@ optOtherDoc.assign_collection_to_personnel = {
   },
   docs: [
     {
-      field: "team_id",
+      field: "auth_id",
       type: "String",
       status: "required",
       description: "ID of the team member to assign or remove collection access",
