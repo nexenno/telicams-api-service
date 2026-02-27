@@ -1411,21 +1411,24 @@ export class OperatorAssetService {
         dateString: `${recordDate}T${startTime}:00`,
         fromTimeZone: timezone, toTimeZone: "utc"
       })
-      let getUTCEnd = helpers.convertDateTimeZone({
-        dateString: `${recordDate}T${startTime}:59`,
-        fromTimeZone: timezone, toTimeZone: "utc"
-      })
 
-      //if the start time is greater than end time
-      if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
-        return helpers.outputError(res, null, 'Start time can not be greater than end time');
-      }
+      let endTIme = new Date(getUTCStart.dateObj)
+      endTIme.setUTCHours(endTIme.getUTCHours() + 1)
+      // let getUTCEnd = helpers.convertDateTimeZone({
+      //   dateString: `${recordDate}T${startTime}:59`,
+      //   fromTimeZone: timezone, toTimeZone: "utc"
+      // })
+
+      // //if the start time is greater than end time
+      // if (getUTCStart.dateObj.getTime() > getUTCEnd.dateObj.getTime()) {
+      //   return helpers.outputError(res, null, 'Start time can not be greater than end time');
+      // }
 
       // @ts-expect-error
-      qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: getUTCEnd.dateObj }
+      qBuilder[component === "count-status" ? "start_time" : "gps_timestamp"] = { $gte: getUTCStart.dateObj, $lt: endTIme }
     }
 
-    console.log("qBuilder", qBuilder)
+    // console.log("qBuilder", qBuilder)
 
     let pageItem = helpers.getPageItemPerPage(itemPerPage, page)
     if (!pageItem.status) return helpers.outputError(res, null, pageItem.msg)
