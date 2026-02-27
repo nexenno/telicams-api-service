@@ -87,6 +87,14 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
   }
 
 
+  async dashboardStats() {
+    if (this.method !== "get") return helpers.outputError(this.res, null, "Invalid request method")
+    return OperatorOtherService.DashboardDataStats({
+      customData: this._custom_data, body: this.body,
+      req: this.req, res: this.res, query: this.query,
+    })
+  }
+
 
 
 }

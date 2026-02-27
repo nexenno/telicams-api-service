@@ -259,6 +259,33 @@ optOtherDoc.assign_collection_to_vehicle = {
    }`
 }
 
+optOtherDoc.dashboard_datastats = {
+  title: "Dashboard Data Stats",
+  header: "Header-> Authorization: Bearer {{token}}",
+  sidebar: "Dashboard Stats",
+  comment: "",
+  method: "GET",
+  url: "http(s)://base-url/operators/assets/dashboard-stats",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "request_type",
+      type: "string",
+      status: "optional",
+      description: "1=Overview | 2=Top Incidents | 3=Top Usage. Leave empty to get all stats",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
+
 
 const RouteContainer = [
   {

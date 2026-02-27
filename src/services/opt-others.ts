@@ -3,6 +3,7 @@ import { DatabaseTableList } from "../assets/var-config"
 import { GlobalTimeZones } from "../assets/var-param"
 import { OperatorLogModel } from "../models/activity-logs"
 import { mongoose } from "../models/dbConnector"
+import { DashcamAlarmModel, DashcamLocationModel, LocationSummaryModel } from "../models/device-data"
 import { CollectionListModel } from "../models/device-lists"
 import { OptVehicleListModel } from "../models/opt-vehlists"
 import { UserOperatorModel, UserOperatorTypes } from "../models/user-operators"
@@ -492,5 +493,141 @@ export class OperatorOtherService {
     return helpers.outputSuccess(res, getLogs)
   }
 
-  // static async Dashboard({ res, req, id, customData: userData }: PrivateMethodProps) {
+  static async DashboardDataStats({ res, req, id, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+    let requestType = helpers.getInputValueString(req.query, "request_type")
+    let resultData = {} as ObjectPayload
+
+    if (!requestType || requestType === "1") {
+      let getOvw: SendDBQuery = await OptVehicleListModel.aggregate([
+        { $match: { operator_id: new mongoose.Types.ObjectId(optID) } },
+        {
+          $group: {
+            _id: null,
+            total_fleet: { $sum: 1 },
+            total_offline: { $sum: { $cond: [{ $ne: ["$online_status", 1] }, 1, 0] } },
+            total_online: { $sum: { $cond: [{ $eq: ["$online_status", 1] }, 1, 0] } },
+            total_shutdown: { $sum: { $cond: [{ $eq: ["$engine_shutdown", 2] }, 1, 0] } },
+          },
+        },
+        {
+          $lookup: {
+            from: DatabaseTableList.dashcam_alarms,
+            let: { optID: new mongoose.Types.ObjectId(optID) },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$operator_id", "$$optID"] }, severity: "CRITICAL" } },
+              { $group: { _id: "$alarm_type", total_count: { $sum: 1 } } },
+              { $sort: { total_count: -1 } },
+              { $project: { alarm_type: "$_id", total_count: 1, } },
+              { $limit: 5 }
+            ],
+            as: "alarm_data"
+          }
+        },
+        { $unset: ["_id", "alarm_data._id"] }
+      ]).catch(e => ({ error: e }))
+
+      //check for error
+      if (getOvw && getOvw.error) {
+        console.log("Error getting dashboard data 1", getOvw.error)
+        return helpers.outputError(res, 500)
+      }
+
+      resultData.overview_data = getOvw.length ? getOvw[0] : {}
+    }
+
+
+    if (!requestType || requestType === "2") {
+      let topIncident: SendDBQuery = await DashcamAlarmModel.aggregate([
+        { $match: { operator_id: new mongoose.Types.ObjectId(optID), severity: "CRITICAL" } },
+        { $group: { _id: null, total_count: { $sum: 1 }, }, },
+        {
+          $lookup: {
+            from: DatabaseTableList.dashcam_alarms,
+            let: { optID: new mongoose.Types.ObjectId(optID), totalCount: "$total_count" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$operator_id", "$$optID"] }, severity: "CRITICAL" } },
+              { $group: { _id: "$vehicle_id", total: { $sum: 1 } } },
+              { $sort: { total: -1 } },
+              { $limit: 10 },
+              { $addFields: { total_percent: { $multiply: [{ $divide: ["$total", "$$totalCount"] }, 100] } } },
+            ],
+            as: "alarm_data"
+          }
+        },
+        { $unwind: "$alarm_data" },
+        { $replaceRoot: { newRoot: "$alarm_data" } },
+        {
+          $lookup: {
+            from: DatabaseTableList.vehicle_lists,
+            let: { vehID: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$vehID"] } } },
+              { $project: { plate_number: 1 } }
+            ],
+            as: "vehicle_data"
+          }
+        },
+        { $unwind: "$vehicle_data" },
+        { $addFields: { plate_number: "$vehicle_data.plate_number" } },
+        { $project: { vehicle_id: "$_id", total_count: "$total", total_percent: 1, plate_number: 1 } },
+        { $unset: ["_id", "__v"] }
+      ]).catch(e => ({ error: e }))
+
+      //check for error
+      if (topIncident && topIncident.error) {
+        console.log("Error getting dashboard data 2", topIncident.error)
+        return helpers.outputError(res, 500)
+      }
+
+      resultData.topincident_data = topIncident
+    }
+
+    if (!requestType || requestType === "3") {
+      let vehUsage: SendDBQuery = await LocationSummaryModel.aggregate([
+        { $match: { operator_id: new mongoose.Types.ObjectId(optID), distance: { $gt: 0 } } },
+        { $group: { _id: null, total_count: { $sum: "$distance" }, }, },
+        {
+          $lookup: {
+            from: DatabaseTableList.dashcam_locstats,
+            let: { optID: new mongoose.Types.ObjectId(optID), totalCount: "$total_count" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$operator_id", "$$optID"] }, distance: { $gt: 0 } } },
+              { $group: { _id: "$vehicle_id", total: { $sum: "$distance" } } },
+              { $sort: { total: -1 } },
+              { $limit: 10 },
+              { $addFields: { total_percent: { $multiply: [{ $divide: ["$total", "$$totalCount"] }, 100] } } },
+            ],
+            as: "vehusage_data"
+          }
+        },
+        { $unwind: "$vehusage_data" },
+        { $replaceRoot: { newRoot: "$vehusage_data" } },
+        {
+          $lookup: {
+            from: DatabaseTableList.vehicle_lists,
+            let: { vehID: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$vehID"] } } },
+              { $project: { plate_number: 1 } }
+            ],
+            as: "vehicle_data"
+          }
+        },
+        { $unwind: "$vehicle_data" },
+        { $addFields: { plate_number: "$vehicle_data.plate_number" } },
+        { $project: { vehicle_id: "$_id", total_km: "$total", total_percent: 1, plate_number: 1 } },
+        { $unset: ["_id", "__v"] }
+      ]).catch(e => ({ error: e }))
+
+      //check for error
+      if (vehUsage && vehUsage.error) {
+        console.log("Error getting dashboard data 3", vehUsage.error)
+        return helpers.outputError(res, 500)
+      }
+      resultData.vehusage_data = vehUsage
+    }
+
+    return helpers.outputSuccess(res, resultData)
+  }
 }
