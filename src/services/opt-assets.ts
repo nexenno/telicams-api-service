@@ -1389,7 +1389,7 @@ export class OperatorAssetService {
       }
       //chek end date if submitted
       //if start date is not submitted
-      if (!!helpers.isDateFormat(recordDate)) {
+      if (!helpers.isDateFormat(recordDate)) {
         return helpers.outputError(res, null, 'Invalid Date. must be in the formate YYYY-MM-DD');
       }
 
