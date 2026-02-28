@@ -12,7 +12,7 @@ export class OperatorAssetService {
 
 
   //========**************DEVICE  SECTION***********=========================/
-  static async GetDevices({ query, body, id, res, customData: userData }: PrivateMethodProps) {
+  static async GetDevices({ query, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let page = helpers.getInputValueString(query, "page")

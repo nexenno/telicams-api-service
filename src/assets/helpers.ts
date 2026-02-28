@@ -365,6 +365,9 @@ export default class helpers {
         device_id: deviceData._id ? String(deviceData._id) : undefined
       }
       GlobalConnectedDevices.set(deviceNumber, sendData)
+      //set the device to active before returning the data
+      sendData.device_id && await OptVehicleListModel.findOneAndUpdate({ device_id: sendData.device_id },
+        { $set: { online_status: 1 } }).catch(e => ({ error: e }))
       return sendData
     }
 
