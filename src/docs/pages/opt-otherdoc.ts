@@ -300,5 +300,12 @@ const RouteContainer = [
       optOtherDoc.assign_collection_to_vehicle,
     ]
   },
+  {
+    name: "Dashboard Stats",
+    route: "operator",
+    routes: [
+      optOtherDoc.dashboard_datastats,
+    ]
+  },
 ]
 export default RouteContainer;
