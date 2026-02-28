@@ -16,6 +16,7 @@ export class OperatorAssetService {
     let q = helpers.getInputValueString(query, "q")
     let itemPerPage = helpers.getInputValueString(query, "item_per_page")
     let page = helpers.getInputValueString(query, "page")
+    let assignStatus = helpers.getInputValueString(query, "assign_status")
     let activeStatus = helpers.getInputValueString(query, "active_status")
     let component = helpers.getInputValueString(query, "component")
     let optID = helpers.getOperatorAuthID(userData)
@@ -34,6 +35,13 @@ export class OperatorAssetService {
     } else {
       //@ts-ignore
       qBuilder.active_status = { $ne: 3 }
+    }
+
+    if (assignStatus) {
+      if (!["0", "1", "2"].includes(assignStatus)) {
+        return helpers.outputError(res, null, "Invalid assign status")
+      }
+      qBuilder.assign_status = parseInt(assignStatus)
     }
 
     if (q) {
@@ -117,7 +125,7 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res, getData)
   }
 
-  static async AssignDeviceToVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+  static async AssignDeviceToVehicle({ body, res, id, customData: userData }: PrivateMethodProps) {
     let vehicleID = helpers.getInputValueString(body, "vehicle_id")
     let optID = helpers.getOperatorAuthID(userData)
 
@@ -176,6 +184,9 @@ export class OperatorAssetService {
     //if the query does not execute
     if (!Assignveh) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
 
+    //set the dashcam device assign status to assigned
+    await DashcamDeviceModel.findByIdAndUpdate(id, { $set: { assign_status: 2 } }).lean().catch(e => ({ error: e }))
+
     //log activity
     helpers.logOperatorActivity({
       auth_id: userData.auth_id, operator_id: optID as string, operation: "assign-device",
@@ -186,7 +197,7 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res)
   }
 
-  static async UnassignDeviceFromVehicle({ body, res, req, id, customData: userData }: PrivateMethodProps) {
+  static async UnassignDeviceFromVehicle({ body, res, id, customData: userData }: PrivateMethodProps) {
     let optID = helpers.getOperatorAuthID(userData)
     //get the device data
     let getDevice: SendDBQuery<DashcamDeviceTypes> = await OptVehicleListModel.findOne({
@@ -213,6 +224,9 @@ export class OperatorAssetService {
 
     //if the query does not execute
     if (!unAssign) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    //set the dashcam device assign status to unassigned
+    await DashcamDeviceModel.findByIdAndUpdate(id, { $set: { assign_status: 1 } }).lean().catch(e => ({ error: e }))
 
     //log activity
     helpers.logOperatorActivity({
